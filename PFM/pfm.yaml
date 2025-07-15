@@ -1,57 +1,16 @@
-        [INPUT]
-            Name tail
-            Tag kube.*
-            Path /var/log/containers/*finsense-pfm-dhanaprayoga*.log
-            Mem_Buf_Limit             20MB
-            Skip_Long_Lines           Off
-            Refresh_Interval          1
-            Read_from_Head            true
-            Rotate_Wait               10
-            Parser                    spring_boot_parser
-            #Multiline                 on
-            Parser_Firstline          multiline
+[INPUT]
+    Name              tail
+    Path              /var/log/test.log
+    Tag               test-log
+    Refresh_Interval  5
+    Read_from_Head    true
 
-        [INPUT]
-            Name tail
-            Tag kube.*
-            Path /var/log/containers/*pfm-data-transfer-service*.log
-            Mem_Buf_Limit             20MB
-            Skip_Long_Lines           Off
-            Refresh_Interval          1
-            Read_from_Head            true
-            Rotate_Wait               10
-            Parser                    spring_boot_parser
-            #Multiline                 on
-            Parser_Firstline          multiline
-
-            
-
-        [OUTPUT]
-            Name               es
-            Match              kube.var.log.containers.*pfm-data-transfer-service*
-            Host               opensearch-cluster-master.opensearch.svc.cluster.local
-            Port               9200
-            Index              alias-pfm-core-1
-            Logstash_Format    Off
-            Replace_Dots       On
-            Retry_Limit        True
-            HTTP_User          admin
-            HTTP_Passwd        07FF@ftpl#017
-            tls                On
-            tls.verify         Off
-            Suppress_Type_Name On
-
-        [OUTPUT]
-            Name               es
-            Match              kube.var.log.containers.*finsense-pfm-dhanaprayoga*
-            Host               opensearch-cluster-master.opensearch.svc.cluster.local
-            Port               9200
-            Index              alias-pfm-core-1
-            Logstash_Format    Off
-            Replace_Dots       On
-            Retry_Limit        True
-            HTTP_User          admin
-            HTTP_Passwd        07FF@ftpl#017
-            tls                On
-            tls.verify         Off
-            Suppress_Type_Name On
+[OUTPUT]
+    Name            opensearch
+    Match           test-log
+    Host            opensearch-cluster-master.opensearch.svc.cluster.local
+    Port            9200
+    Index           test-logs
+    HTTP_User       admin
+    HTTP_Passwd     Hackthon@12345
+    Logstash_Format On
