@@ -1,6 +1,6 @@
 [INPUT]
     Name              tail
-    Path              /var/log/test.log
+    Path              /var/log/containers/*logger*.log
     Tag               test-log
     Refresh_Interval  5
     Read_from_Head    true
@@ -8,9 +8,9 @@
 [OUTPUT]
     Name            opensearch
     Match           test-log
-    Host            opensearch-cluster-master.opensearch.svc.cluster.local
+    Host            opensearch-multinode-cluster-master.opensearch.svc.cluster.local
     Port            9200
     Index           test-logs
     HTTP_User       admin
-    HTTP_Passwd     Hackthon@12345
+    HTTP_Passwd     admin
     Logstash_Format On
