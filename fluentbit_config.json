@@ -1,0 +1,17 @@
+{
+    "product": "connecthub",
+    "environment": "uat",
+    "index": "test",
+    "parser": {
+        "firstline": {
+            "Name": "",
+            "Regex": ""
+        },
+        "multiline": {
+            "Name": "",
+            "Regex": ""
+        }
+    },
+    "pod": "",
+    "namespace": ""
+}
