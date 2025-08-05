@@ -2,7 +2,8 @@
 {
     "product": "connecthub",
     "environment": "uat",
-    "index": "test",
+    "tag": "test",
+    "index": "test-logger-2",
     "parser": {
         "firstline": {
             "Name": "",
@@ -13,7 +14,7 @@
             "Regex": ""
         }
     },
-    "pod": "",
-    "namespace": ""
+    "pod": "test-logger-2",
+    "namespace": "test"
 }
 ]
