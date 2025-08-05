@@ -1,3 +1,4 @@
+[
 {
     "product": "connecthub",
     "environment": "uat",
@@ -15,3 +16,4 @@
     "pod": "",
     "namespace": ""
 }
+]
