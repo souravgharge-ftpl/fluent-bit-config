@@ -5,14 +5,8 @@
     "tag": "test",
     "index": "test-logger-2",
     "parser": {
-        "firstline": {
-            "Name": "",
-            "Regex": ""
-        },
-        "multiline": {
-            "Name": "",
-            "Regex": ""
-        }
+        "firstline": "",
+        "multiline": ""
     },
     "pod": "test-logger-2",
     "namespace": "test"
