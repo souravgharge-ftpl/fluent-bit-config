@@ -1,0 +1,128 @@
+def csvFilesChanged = []
+
+pipeline {
+    agent any
+
+    environment {
+        UAT_SERVER = '13.235.152.196'
+        SSH_KEY = 'fluent-bit-user'
+    }
+
+    stages {
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()
+            }
+        }
+
+        stage('Checkout') {
+            steps {
+                git(
+                    url: 'https://github.com/souravgharge-ftpl/fluent-bit-config.git',
+                    branch: 'main',
+                    credentialsId: 'sourav-github-token'
+                )
+            }
+        }
+
+        stage('Detect Changed CSV Files') {
+            steps {
+                script {
+                    def changedCsvFilesRaw = sh(
+                        script: "git diff --name-status HEAD~1 HEAD | grep -E '^[AMR]' | awk '{print \$NF}' | grep '.csv' || true",
+                        returnStdout: true
+                    ).trim()
+
+                    csvFilesChanged = changedCsvFilesRaw ? changedCsvFilesRaw.split('\n') : []
+
+                    echo "Changed CSV files: ${csvFilesChanged}"
+                }
+            }
+        }
+
+        stage('Generate Configs and Validate') {
+            when {
+                expression { csvFilesChanged && csvFilesChanged.size() > 0 }
+            }
+
+            steps {
+                sshagent([env.SSH_KEY]) {
+                    script {
+                        def inputTemplate  = readFile('common/template/fluentbit_input_template.conf')
+                        def filterTemplate = readFile('common/template/fluentbit_filter_template.conf')
+                        def outputTemplate = readFile('common/template/fluentbit_output_template.conf')
+
+                        csvFilesChanged.each { csvPath ->
+                            def productName = csvPath.tokenize('/')[0]
+                            def lines = readFile(csvPath).split('\n')
+
+                            def combinedInput = ""
+                            def combinedFilter = "@include /fluent-bit/etc/includes/common/fluent-bit-filter.conf\n\n"
+                            def combinedOutput = ""
+
+                            lines.eachWithIndex { line, idx ->
+                                if (idx == 0 || line.startsWith("#")) return
+                                def (deployment, index, firstline, multiline) = line.split(",", -1)
+                                deployment = deployment.trim()
+                                index      = index.trim()
+                                firstline  = firstline?.trim() ?: ""
+                                multiline  = multiline?.trim() ?: ""
+
+                                def parserLine = ""
+                                if (firstline)  parserLine += "    Parser_Firstline    ${firstline}\n"
+                                if (multiline)  parserLine += "    Parser_N            ${multiline}\n"
+
+                                combinedInput += inputTemplate
+                                    .replace("{{DEPLOYMENT}}", deployment)
+                                    .replace("{{PARSER_LINE}}", parserLine) + "\n"
+
+                                combinedOutput += outputTemplate
+                                    .replace("{{DEPLOYMENT}}", deployment)
+                                    .replace("{{INDEX}}", index) + "\n"
+                            }
+
+                            def finalConf = combinedInput + combinedFilter + combinedOutput
+                            def outputFileName = "${productName}-fluentbit_uat.conf"
+                            def outputPath = "${productName}/${outputFileName}"
+                            writeFile file: outputPath, text: finalConf
+                            echo "Generated config for ${productName}:\n" + finalConf
+
+                            // Run dry run using ephemeral pod
+                            sh """
+                                rm -f dryrun.yaml
+                                kubectl run fluentbit-dryrun-${productName} --rm -i --restart=Never --image=fluent/fluent-bit:2.2.2 --overrides='
+                                {
+                                    "spec": {
+                                        "containers": [{
+                                            "name": "dryrun",
+                                            "image": "fluent/fluent-bit:2.2.2",
+                                            "args": ["--dry-run", "-c", "/tmp/${outputFileName}"],
+                                            "volumeMounts": [{
+                                                "name": "config-vol",
+                                                "mountPath": "/tmp"
+                                            }]
+                                        }],
+                                        "volumes": [{
+                                            "name": "config-vol",
+                                            "hostPath": {
+                                                "path": "$(pwd)/${productName}",
+                                                "type": "Directory"
+                                            }
+                                        }]
+                                    }
+                                }' || (echo "Dry-run failed for ${productName}" && exit 1)
+                            """
+
+                            // If dry run is successful, SCP
+                            sh """
+                                echo "Dry run successful. Proceeding to copy..."
+                                scp -o StrictHostKeyChecking=no ${outputPath} fluent-bit-user@${UAT_SERVER}:/home/fluent-bit-user/opensearch-bkp_22JAN25/config/${productName}/
+                                ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} "ls -l /home/fluent-bit-user/opensearch-bkp_22JAN25/config/${productName}/${outputFileName}"
+                            """
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
