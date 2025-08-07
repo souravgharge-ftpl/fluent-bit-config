@@ -4,7 +4,9 @@ pipeline {
     agent any
 
     environment {
+        DEV_SERVER = ''
         UAT_SERVER = '13.235.152.196'
+        PROD_SERVER = ''
         SSH_KEY = 'fluent-bit-user'
     }
 
@@ -54,6 +56,8 @@ pipeline {
 
                         csvFilesChanged.each { csvPath ->
                             def productName = csvPath.tokenize('/')[0]
+                            def env = csvFilesChanged.tokenize('_')[3]
+                            echo "Environment: ${env}"
                             def lines = readFile(csvPath).split('\n')
 
                             def combinedInput = ""
