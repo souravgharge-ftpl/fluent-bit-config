@@ -28,12 +28,15 @@ pipeline {
         stage('Detect Changed CSV Files') {
             steps {
                 script {
-                    csvFilesChanged = sh(
-                        script: "git diff --name-only HEAD HEAD~1 | grep '.csv' || true",
+                    def changedCsvFilesRaw = sh(
+                        script: "git diff --name-status HEAD~1 HEAD | grep -E '^[AMR]' | awk '{print \$NF}' | grep '.csv' || true",
                         returnStdout: true
-                    ).trim().split('\n').findAll { it.endsWith(".csv") }
+                    ).trim()
+
+                    csvFilesChanged = changedCsvFilesRaw ? changedCsvFilesRaw.split('\n') : []
 
                     echo "Changed CSV files: ${csvFilesChanged}"
+
                 }
             }
         }
