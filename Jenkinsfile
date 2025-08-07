@@ -39,7 +39,7 @@ pipeline {
                         def content = readFile('connecthub/fluentbit_config_uat.csv').split('\n')
 
                         def combinedInput  = ""
-                        def combinedFilter = "@include /fluent-bit/etc/includes/common/fluent-bit-filter.conf" + "\n"
+                        def combinedFilter = "@include /fluent-bit/etc/includes/common/fluent-bit-filter.conf" + "\n\n"
                         def combinedOutput = ""
 
                         content.eachWithIndex { line, idx ->
