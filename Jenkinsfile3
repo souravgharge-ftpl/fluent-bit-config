@@ -56,8 +56,8 @@ pipeline {
 
                         csvFilesChanged.each { csvPath ->
                             def productName = csvPath.tokenize('/')[0]
-                            //def env = csvFilesChanged.tokenize('_')[3]
-                            echo "Environment: ${csvPath}"
+                            def env = csvPath.replace('.csv', '').tokenize('_')[3]
+                            echo "Environment: ${env}"
                             def lines = readFile(csvPath).split('\n')
 
                             def combinedInput = ""
@@ -90,6 +90,32 @@ pipeline {
                             def outputPath = "${productName}/${outputFileName}"
                             writeFile file: outputPath, text: finalConf
                             echo "Generated config for ${productName}:\n" + finalConf
+
+                            // Run dry run using ephemeral pod
+                            sh """
+                                rm -f dryrun.yaml
+                                kubectl run fluentbit-dryrun-${productName} --rm -i --restart=Never --image=fluent/fluent-bit:2.2.2 --overrides='
+                                {
+                                    "spec": {
+                                        "containers": [{
+                                            "name": "dryrun",
+                                            "image": "fluent/fluent-bit:2.2.2",
+                                            "args": ["--dry-run", "-c", "/tmp/${outputFileName}"],
+                                            "volumeMounts": [{
+                                                "name": "config-vol",
+                                                "mountPath": "/tmp"
+                                            }]
+                                        }],
+                                        "volumes": [{
+                                            "name": "config-vol",
+                                            "hostPath": {
+                                                "path": "$(pwd)/${productName}",
+                                                "type": "Directory"
+                                            }
+                                        }]
+                                    }
+                                }' || (echo "Dry-run failed for ${productName}" && exit 1)
+                            """
 
                             // If dry run is successful, SCP
                             sh """
