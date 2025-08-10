@@ -1,0 +1,190 @@
+def productFiles = ["connecthub"]
+def DRY_RUN_STATUS = "FAIL"
+
+pipeline {
+    agent any
+
+    environment {
+        DEV_SERVER     = ''
+        UAT_SERVER     = '13.235.152.196'
+        PROD_SERVER    = ''
+        SSH_KEY        = 'fluent-bit-user'
+    }
+
+    stages {
+
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()
+            }
+        }
+
+        stage('Checkout Config Repo') {
+            steps {
+                git(
+                    url: 'https://github.com/souravgharge-ftpl/fluent-bit-config.git',
+                    branch: 'main',
+                    credentialsId: 'sourav-github-token'
+                )
+            }
+        }
+
+        stage('Prepare Remote Directory') {
+            steps {
+                sshagent([env.SSH_KEY]) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} "\
+                            rm -rf /home/fluent-bit-user/fluent-bit/git-check && \
+                            mkdir -p /home/fluent-bit-user/fluent-bit/git-check"
+
+                        scp -o StrictHostKeyChecking=no -r common fluent-bit-user@${UAT_SERVER}:/home/fluent-bit-user/fluent-bit/git-check/
+                    """
+                }
+            }
+        }
+
+        stage('Generate Configs & Copy to Remote') {
+            steps {
+                sshagent([env.SSH_KEY]) {
+                    script {
+                        def inputTemplate  = readFile('common/template/fluentbit_input_template.conf')
+                        def outputTemplate = readFile('common/template/fluentbit_output_template.conf')
+                        def masterTemplate = readFile('common/template/fluentbit_master_template.conf')
+                        def includesBlock  = ""
+
+                        productFiles.each { product ->
+                            def csvPath = "${product}/fluentbit_config_${product}_uat.csv"
+                            def envName = csvPath.replace('.csv', '').tokenize('_')[3]
+                            echo "Environment: ${envName}"
+
+                            def lines = readFile(csvPath).split('\n')
+                            def combinedInput = ""
+                            def combinedFilter = "@include /fluent-bit/etc/includes/common/all-filters.conf\n\n"
+                            def combinedOutput = ""
+
+                            lines.eachWithIndex { line, idx ->
+                                if (idx == 0 || line.startsWith("#")) return
+                                def (deployment, index, firstline, multiline) = line.split(",", -1)
+                                deployment = deployment.trim()
+                                index      = index.trim()
+                                firstline  = firstline?.trim() ?: ""
+                                multiline  = multiline?.trim() ?: ""
+
+                                def parserLine = ""
+                                if (firstline) parserLine += "    Parser_Firstline    ${firstline}\n"
+                                if (multiline) parserLine += "    Parser_N            ${multiline}\n"
+
+                                combinedInput += inputTemplate
+                                    .replace("{{DEPLOYMENT}}", deployment)
+                                    .replace("{{PARSER_LINE}}", parserLine) + "\n"
+
+                                combinedOutput += outputTemplate
+                                    .replace("{{DEPLOYMENT}}", deployment)
+                                    .replace("{{INDEX}}", index) + "\n"
+                            }
+
+                            def finalConf = combinedInput + combinedFilter + combinedOutput
+                            def outputFileName = "fluentbit_config_${product}_uat.conf"
+                            def outputPath = "${product}/${outputFileName}"
+                            writeFile file: outputPath, text: finalConf
+
+                            includesBlock += "@include /fluent-bit/etc/includes/${product}/${outputFileName}\n"
+
+                            sh """
+                                ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} \
+                                    "mkdir -p /home/fluent-bit-user/fluent-bit/git-check/${product}"
+                                scp -o StrictHostKeyChecking=no "${outputPath}" \
+                                    fluent-bit-user@${UAT_SERVER}:/home/fluent-bit-user/fluent-bit/git-check/${product}/
+                            """
+                        }
+
+                        def masterConf = masterTemplate.contains("{{PRODUCT_INCLUDES}}")
+                            ? masterTemplate.replace("{{PRODUCT_INCLUDES}}", includesBlock)
+                            : masterTemplate.trim() + "\n" + includesBlock
+
+                        writeFile file: "master-2.conf", text: masterConf
+
+                        sh """
+                            scp -o StrictHostKeyChecking=no master-2.conf fluent-bit-user@${UAT_SERVER}:/home/fluent-bit-user/fluent-bit/git-check/
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Dry Run in Debug Pod (Remote)') {
+            steps {
+                sshagent([env.SSH_KEY]) {
+                    script {
+                        def kubectl = '/home/linuxbrew/.linuxbrew/bin/kubectl'
+                        def dryRunFile = "/home/fluent-bit-user/fluent-bit/git-check/dry_run_output.txt"
+
+                        // Create debug pod, copy configs, run dry-run
+                        sh """
+                            ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} '\
+                                ${kubectl} delete pod fluent-bit-debug -n opensearch --ignore-not-found && \
+                                ${kubectl} run fluent-bit-debug \
+                                    --image=cr.fluentbit.io/fluent/fluent-bit:4.0.7-debug \
+                                    --restart=Never \
+                                    --namespace=opensearch \
+                                    --command -- sleep 600 && \
+                                ${kubectl} wait --for=condition=Ready pod/fluent-bit-debug -n opensearch --timeout=60s && \
+                                ${kubectl} cp /home/fluent-bit-user/fluent-bit/git-check/ opensearch/fluent-bit-debug:/fluent-bit/etc/includes/ && \
+                                ${kubectl} cp /home/fluent-bit-user/fluent-bit/git-check/master-2.conf opensearch/fluent-bit-debug:/fluent-bit/etc/fluent-bit.conf && \
+                                ${kubectl} exec fluent-bit-debug -n opensearch -- \
+                                    /fluent-bit/bin/fluent-bit --dry-run -c /fluent-bit/etc/fluent-bit.conf -v \
+                                    > ${dryRunFile} 2>&1
+                            '
+                        """
+
+                        // Check success in remote file
+                        def statusCheck = sh(
+                            script: """
+                                ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} '\
+                                    grep -Fq "configuration test is successful" ${dryRunFile} && echo True || echo False
+                                '
+                            """,
+                            returnStdout: true
+                        ).trim()
+
+                        DRY_RUN_STATUS = (statusCheck == "True") ? "SUCCESS" : "FAIL"
+
+                        // Show last lines from remote file
+                        sh """
+                            ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} "\
+                                rm ${dryRunFile}
+                        """
+
+                        echo "Dry run status: ${DRY_RUN_STATUS}"
+                    }
+                }
+            }
+        }
+
+        stage('Commit to Repo2') {
+            when {
+                expression { DRY_RUN_STATUS == "SUCCESS" }
+            }
+            steps {
+                sh """
+                    ls
+                    #git clone git@github.com:your-org/repo2.git
+                    #cd repo2
+                    #cp -r /path/to/your/configs/* .
+                    #git add .
+                    #git commit -m "Update Fluent Bit configs after successful dry run"
+                    #git push origin main
+                """
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "Pipeline finished. DRY_RUN_STATUS = ${DRY_RUN_STATUS}"
+        }
+        failure {
+            echo "Pipeline failed. DRY_RUN_STATUS was ${DRY_RUN_STATUS}"
+        }
+    }
+}
