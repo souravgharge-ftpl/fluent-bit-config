@@ -1,4 +1,4 @@
-def productFiles = ["connecthub"]
+def productFiles = ["connecthub","finsense","prism"]
 def DRY_RUN_STATUS = "FAIL"
 
 pipeline {
