@@ -57,6 +57,7 @@ pipeline {
                         productFiles.each { product ->
                             def csvPath = "${product}/fluentbit_config_${product}_uat.csv"
                             def envName = csvPath.replace('.csv', '').tokenize('_')[3]
+                            echp "Product: ${product}"
                             echo "Environment: ${envName}"
 
                             def lines = readFile(csvPath).split('\n')
@@ -154,7 +155,7 @@ pipeline {
                         // Show last lines from remote file
                         sh """
                             ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} "\
-                                rm ${dryRunFile}
+                                rm ${dryRunFile}"
                         """
 
                         echo "Dry run status: ${DRY_RUN_STATUS}"
