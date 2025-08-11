@@ -1,4 +1,4 @@
-def productFiles = ["connecthub", "finsense"]
+def productFiles = ["connecthub", "finsense", "prism"]
 def DRY_RUN_STATUS = "FAIL"
 def safeCommitMsg = ""
 
@@ -197,7 +197,6 @@ pipeline {
                             git remote add origin git@github.com:souravgharge-ftpl/fluent-bit-config-master.git && \
                             git fetch origin main || echo "No remote main yet" && \
                             git checkout -B main && \
-                            git reset --hard origin/main || echo "No remote history" && \
                             git pull origin main --allow-unrelated-histories || echo "Nothing to pull" && \
                             git add -u && \
                             git add . && \
