@@ -1,4 +1,4 @@
-def productFiles = ["connecthub","finsense","prism"]
+def productFiles = ["connecthub"]
 def DRY_RUN_STATUS = "FAIL"
 
 pipeline {
@@ -9,6 +9,8 @@ pipeline {
         UAT_SERVER     = '13.235.152.196'
         PROD_SERVER    = ''
         SSH_KEY        = 'fluent-bit-user'
+        GIT_TOKEN      = 'sourav-github-token'
+        MASTER_REPO    = 'https://github.com/souravgharge-ftpl/fluent-bit-config-master.git'
     }
 
     stages {
@@ -161,22 +163,34 @@ pipeline {
             }
         }
 
-        stage('Commit to Repo2') {
-            when {
-                expression { DRY_RUN_STATUS == "SUCCESS" }
-            }
+        stage("Git Push Test (Force Local Changes)") {
             steps {
-                sh """
-                    ls
-                    #git clone git@github.com:your-org/repo2.git
-                    #cd repo2
-                    #cp -r /path/to/your/configs/* .
-                    #git add .
-                    #git commit -m "Update Fluent Bit configs after successful dry run"
-                    #git push origin main
-                """
+                sshagent([env.SSH_KEY]) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} '\
+                            cd /home/fluent-bit-user/fluent-bit/git-check && \
+                            if [ ! -d .git ]; then \
+                                git init && \
+                                git checkout -b main; \
+                            fi && \
+                            git config user.email "souravg@finfactor.in" && \
+                            git config user.name "souravgharge-ftpl" && \
+                            git remote remove origin || true && \
+                            git remote add origin https://souravgharge-ftpl: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@github.com/souravgharge-ftpl/fluent-bit-config-master.git && \
+                            git fetch origin main || echo "No remote main yet" && \
+                            git checkout -B main && \
+                            git reset --hard origin/main || echo "No remote history" && \
+                            git pull origin main --allow-unrelated-histories || echo "Nothing to pull" && \
+                            git add -u && \
+                            git add . && \
+                            git commit -m "Update Fluent Bit configs after successful dry run" || echo "No changes to commit" && \
+                            git push origin main
+                        '
+                    """
+                }
             }
         }
+
     }
 
     post {
