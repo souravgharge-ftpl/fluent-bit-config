@@ -57,7 +57,7 @@ pipeline {
                         productFiles.each { product ->
                             def csvPath = "${product}/fluentbit_config_${product}_uat.csv"
                             def envName = csvPath.replace('.csv', '').tokenize('_')[3]
-                            echp "Product: ${product}"
+                            echo "Product: ${product}"
                             echo "Environment: ${envName}"
 
                             def lines = readFile(csvPath).split('\n')
