@@ -1,4 +1,4 @@
-def productFiles = ["connecthub", "finsense"]
+def productFiles = ["connecthub", "finsense", "prism"]
 def DRY_RUN_STATUS = "FAIL"
 def safeCommitMsg = ""
 
@@ -52,9 +52,10 @@ pipeline {
                     sh """
                         ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} "\
                             rm -rf /home/fluent-bit-user/fluent-bit/git-check && \
-                            mkdir -p /home/fluent-bit-user/fluent-bit/git-check"
+                            mkdir -p /home/fluent-bit-user/fluent-bit/git-check/common"
 
-                        scp -o StrictHostKeyChecking=no -r common fluent-bit-user@${UAT_SERVER}:/home/fluent-bit-user/fluent-bit/git-check/
+                        scp -o StrictHostKeyChecking=no -r common/all-filters.conf fluent-bit-user@${UAT_SERVER}:/home/fluent-bit-user/fluent-bit/git-check/common
+                        scp -o StrictHostKeyChecking=no -r common/all-parsers.conf fluent-bit-user@${UAT_SERVER}:/home/fluent-bit-user/fluent-bit/git-check/common
                     """
                 }
             }
