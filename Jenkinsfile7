@@ -1,4 +1,4 @@
-def productFiles = ["connecthub", "finsense", "prism"]
+def productFiles = ["connecthub", "finsense"]
 def DRY_RUN_STATUS = "FAIL"
 def safeCommitMsg = ""
 
@@ -200,7 +200,7 @@ pipeline {
                             git pull origin main --allow-unrelated-histories || echo "Nothing to pull" && \
                             git add -u && \
                             git add . && \
-                            git commit -m '${safeCommitMsg}' || echo "No changes to commit" && \
+                            git commit -m '\\''${safeCommitMsg}'\\'' || echo "No changes to commit" && \
                             git push origin main
                         '
                     """
