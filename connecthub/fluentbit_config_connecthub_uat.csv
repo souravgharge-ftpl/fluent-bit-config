@@ -1,4 +1,4 @@
 #deployment,index,firstline_parser,multiline_parser
-test,test,,
+test-logger,test,,
 connecthub-v2,connecthub-v2-alias,connecthub_firstline_parser,connecthub_continuation_parser
 connecthub-2-0-0-dev,connecthub-karaf-alias,connecthub_karaf_firstline,connecthub_karaf_continuation
