@@ -12,6 +12,7 @@ pipeline {
         SSH_KEY        = 'fluent-bit-user'
         GIT_TOKEN      = 'sourav-github-token'
         MASTER_REPO    = 'https://github.com/souravgharge-ftpl/fluent-bit-config-master.git'
+        REMOTE_PATH    = '/home/fluent-bit-user/fluent-bit/git-check'
     }
 
     stages {
@@ -39,23 +40,30 @@ pipeline {
                         script: 'git log -1 --pretty=%B',
                         returnStdout: true
                     ).trim()
-                    safeCommitMsg = commitMsg.replace("'", "'\"'\"'")
+                    safeCommitMsg = commitMsg.replace('"', '\\"')
 
                     echo "Latest commit message: ${safeCommitMsg}"
                 }
             }
         }
 
+
+
         stage('Prepare Remote Directory') {
             steps {
                 sshagent([env.SSH_KEY]) {
                     sh """
                         ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} "\
-                            rm -rf /home/fluent-bit-user/fluent-bit/git-check && \
-                            mkdir -p /home/fluent-bit-user/fluent-bit/git-check/common"
+                            
+                            if [ ! -d "${REMOTE_PATH}" ]; then
+                                git clone ${MASTER_REPO} ${REMOTE_PATH}
+                            fi
+                            cd ${REMOTE_PATH}
+                            git pull origin main
+                            "
 
-                        scp -o StrictHostKeyChecking=no -r common/all-filters.conf fluent-bit-user@${UAT_SERVER}:/home/fluent-bit-user/fluent-bit/git-check/common
-                        scp -o StrictHostKeyChecking=no -r common/all-parsers.conf fluent-bit-user@${UAT_SERVER}:/home/fluent-bit-user/fluent-bit/git-check/common
+                        scp -o StrictHostKeyChecking=no -r common/all-filters.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/common
+                        scp -o StrictHostKeyChecking=no -r common/all-parsers.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/common
                     """
                 }
             }
@@ -110,9 +118,9 @@ pipeline {
 
                             sh """
                                 ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} \
-                                    "mkdir -p /home/fluent-bit-user/fluent-bit/git-check/${product}"
+                                    "mkdir -p ${REMOTE_PATH}/${product}"
                                 scp -o StrictHostKeyChecking=no "${outputPath}" \
-                                    fluent-bit-user@${UAT_SERVER}:/home/fluent-bit-user/fluent-bit/git-check/${product}/
+                                    fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/${product}/
                             """
                         }
 
@@ -125,7 +133,7 @@ pipeline {
                         writeFile file: "master-2.conf", text: masterConf
 
                         sh """
-                            scp -o StrictHostKeyChecking=no master-2.conf fluent-bit-user@${UAT_SERVER}:/home/fluent-bit-user/fluent-bit/git-check/
+                            scp -o StrictHostKeyChecking=no master-2.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/
                         """
                     }
                 }
@@ -137,7 +145,7 @@ pipeline {
                 sshagent([env.SSH_KEY]) {
                     script {
                         def kubectl = '/home/linuxbrew/.linuxbrew/bin/kubectl'
-                        def dryRunFile = "/home/fluent-bit-user/fluent-bit/git-check/dry_run_output.txt"
+                        def dryRunFile = "${REMOTE_PATH}/dry_run_output.txt"
 
                         // Create debug pod, copy configs, run dry-run
                         sh """
@@ -149,8 +157,8 @@ pipeline {
                                     --namespace=opensearch \
                                     --command -- sleep 600 && \
                                 ${kubectl} wait --for=condition=Ready pod/fluent-bit-debug -n opensearch --timeout=60s && \
-                                ${kubectl} cp /home/fluent-bit-user/fluent-bit/git-check/ opensearch/fluent-bit-debug:/fluent-bit/etc/includes/ && \
-                                ${kubectl} cp /home/fluent-bit-user/fluent-bit/git-check/master-2.conf opensearch/fluent-bit-debug:/fluent-bit/etc/fluent-bit.conf && \
+                                ${kubectl} cp ${REMOTE_PATH}/ opensearch/fluent-bit-debug:/fluent-bit/etc/includes/ && \
+                                ${kubectl} cp ${REMOTE_PATH}/master-2.conf opensearch/fluent-bit-debug:/fluent-bit/etc/fluent-bit.conf && \
                                 ${kubectl} exec fluent-bit-debug -n opensearch -- \
                                     /fluent-bit/bin/fluent-bit --dry-run -c /fluent-bit/etc/fluent-bit.conf -v \
                                     > ${dryRunFile} 2>&1
@@ -182,25 +190,19 @@ pipeline {
         }
 
         stage("Git Push Test (Force Local Changes)") {
+            when {
+                expression { DRY_RUN_STATUS == "SUCCESS" }
+            }
             steps {
                 sshagent([env.SSH_KEY]) {
                     sh """
                         ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} '\
-                            cd /home/fluent-bit-user/fluent-bit/git-check && \
-                            if [ ! -d .git ]; then \
-                                git init && \
-                                git checkout -b main; \
-                            fi && \
-                            git config user.email "souravg@finfactor.in" && \
-                            git config user.name "souravgharge-ftpl" && \
-                            git remote remove origin || true && \
-                            git remote add origin git@github.com:souravgharge-ftpl/fluent-bit-config-master.git && \
-                            git fetch origin main || echo "No remote main yet" && \
-                            git checkout -B main && \
-                            git pull origin main --allow-unrelated-histories || echo "Nothing to pull" && \
-                            git add -u && \
-                            git add . && \
-                            git commit -m '\\''${safeCommitMsg}'\\'' || echo "No changes to commit" && \
+                            cd ${REMOTE_PATH}
+                            git config user.email "souravg@finfactor.in"
+                            git config user.name "souravgharge-ftpl"
+
+                            git add .
+                            git commit -m "${safeCommitMsg}"
                             git push origin main
                         '
                     """
