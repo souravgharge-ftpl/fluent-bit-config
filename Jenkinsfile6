@@ -177,7 +177,7 @@ pipeline {
                             git config user.email "souravg@finfactor.in" && \
                             git config user.name "souravgharge-ftpl" && \
                             git remote remove origin || true && \
-                            git remote add origin https://souravgharge-ftpl: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@github.com/souravgharge-ftpl/fluent-bit-config-master.git && \
+                            git remote add origin git@github.com:souravgharge-ftpl/fluent-bit-config-master.git && \
                             git fetch origin main || echo "No remote main yet" && \
                             git checkout -B main && \
                             git reset --hard origin/main || echo "No remote history" && \
