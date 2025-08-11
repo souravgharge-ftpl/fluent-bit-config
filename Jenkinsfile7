@@ -1,5 +1,6 @@
 def productFiles = ["connecthub", "finsense", "prism"]
 def DRY_RUN_STATUS = "FAIL"
+def safeCommitMsg = ""
 
 pipeline {
     agent any
@@ -28,6 +29,20 @@ pipeline {
                     branch: 'main',
                     credentialsId: 'sourav-github-token'
                 )
+            }
+        }
+
+        stage('Get Commit Message') {
+            steps{
+                script {
+                    def commitMsg = sh(
+                        script: 'git log -1 --pretty=%B',
+                        returnStdout: true
+                    ).trim()
+                    safeCommitMsg = commitMsg.replace("'", "'\"'\"'")
+
+                    echo "Latest commit message: ${safeCommitMsg}"
+                }
             }
         }
 
@@ -185,7 +200,7 @@ pipeline {
                             git pull origin main --allow-unrelated-histories || echo "Nothing to pull" && \
                             git add -u && \
                             git add . && \
-                            git commit -m "Update Fluent Bit configs after successful dry run" || echo "No changes to commit" && \
+                            git commit -m '${safeCommitMsg}' || echo "No changes to commit" && \
                             git push origin main
                         '
                     """
