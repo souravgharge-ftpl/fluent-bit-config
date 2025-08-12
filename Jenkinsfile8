@@ -123,15 +123,15 @@ pipeline {
                                 writeFile file: outputPath, text: finalConf
 
                                 includesBlock += "@include /fluent-bit/etc/includes/${product}/${outputFileName}\n"
+
+                                sh """
+                                    ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} \
+                                        "mkdir -p ${REMOTE_PATH}/${product}"
+                                    scp -o StrictHostKeyChecking=no "${outputPath}" \
+                                        fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/${product}/
+                                """
                             }
                         }
-
-                        sh """
-                            ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} \
-                                "mkdir -p ${REMOTE_PATH}"
-                            scp -r -o StrictHostKeyChecking=no "${WORKSPACE}/"* \
-                                fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/
-                        """
 
                         def combinedFilter = "@include /fluent-bit/etc/includes/common/all-filters.conf\n\n"
 
