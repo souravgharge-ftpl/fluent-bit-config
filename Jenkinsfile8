@@ -191,7 +191,7 @@ pipeline {
 
                         // Show last lines from remote file
                         sh """
-                            scp -o StrictHostChecking=no fluent-bit-user@${UAT_SERVER}:${dryRunFile} ${localDryRunFile}
+                            scp -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER}:${dryRunFile} ${localDryRunFile}
                             ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} "rm ${dryRunFile}"
                         """
 
