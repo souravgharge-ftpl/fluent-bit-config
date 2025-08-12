@@ -129,7 +129,7 @@ pipeline {
                         sh """
                             ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} \
                                 "mkdir -p ${REMOTE_PATH}"
-                            scp -o StrictHostKeyChecking=no "${WORKSPACE}" \
+                            scp -r -o StrictHostKeyChecking=no "${WORKSPACE}" \
                                 fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/
                         """
 
