@@ -203,7 +203,7 @@ pipeline {
 
         stage('Archive Artifacts') {
             steps {
-                archiveArtifacts artifacts: "${localDryRunFile}", allowEmptyArchive: true
+                archiveArtifacts artifacts: "${WORKSPACE}/${localDryRunFile}", allowEmptyArchive: true
             }
         }
 
