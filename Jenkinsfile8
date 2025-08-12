@@ -85,7 +85,9 @@ pipeline {
                                          .split("\n")
 
                             csvFiles.each { file ->
-                                def fileName = file.replace('.csv', '')
+                                def fileName = file
+                                    .replace('.csv', '') 
+                                    .replace("${product}/",'')
                                 def csvPath = "${product}/${fileName}.csv"
                                 def envName = fileName.tokenize('_')[3]
                                 echo "Environment: ${envName}"
