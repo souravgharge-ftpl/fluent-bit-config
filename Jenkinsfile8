@@ -186,15 +186,24 @@ pipeline {
 
                         DRY_RUN_STATUS = (statusCheck == "True") ? "SUCCESS" : "FAIL"
 
+                        def localDryRunFile = "${WORKSPACE}/dry_run_output.txt"
+
                         // Show last lines from remote file
                         sh """
                             ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} "\
+                                scp -o StrictHostChecking=no fluent-bit-user@${UAT_SERVER}:${dryRunFile} ${localDryRunFile}
                                 rm ${dryRunFile}"
                         """
 
                         echo "Dry run status: ${DRY_RUN_STATUS}"
                     }
                 }
+            }
+        }
+
+        stage('Archive Artifacts') {
+            steps {
+                archiveArtifacts artifacts: "${localDryRunFile}", allowEmptyArchive: true
             }
         }
 
