@@ -1,6 +1,7 @@
 def productFiles = ["connecthub", "finsense", "prism"]
 def DRY_RUN_STATUS = "FAIL"
 def safeCommitMsg = ""
+def localDryRunFile = ""
 
 pipeline {
     agent any
@@ -186,7 +187,7 @@ pipeline {
 
                         DRY_RUN_STATUS = (statusCheck == "True") ? "SUCCESS" : "FAIL"
 
-                        def localDryRunFile = "${WORKSPACE}/dry_run_output.txt"
+                        localDryRunFile = "${WORKSPACE}/dry_run_output.txt"
 
                         // Show last lines from remote file
                         sh """
