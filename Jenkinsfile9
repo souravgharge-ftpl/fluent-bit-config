@@ -141,7 +141,7 @@ pipeline {
                                     ? masterTemplate.replace("{{PRODUCT_INCLUDES}}", includesBlock)
                                     : masterTemplate.trim() + "\n" + includesBlock + combinedFilter
 
-                                writeFile file: "master-${ENV_NAME}.conf", text: masterConf
+                                writeFile file: "master.conf", text: masterConf
                         }
 
                         sh """
