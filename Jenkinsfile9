@@ -3,6 +3,7 @@ def DRY_RUN_STATUS = "FAIL"
 def safeCommitMsg = ""
 def localDryRunFile = ""
 def ENV_NAME = ''
+def envFiles = [dev: [], uat: [], prod: []]0
 
 pipeline {
     agent any
@@ -71,6 +72,30 @@ pipeline {
             }
         }
 
+        stage('Map files to environment') {
+            steps {
+                script {
+                    productFiles.each { product ->
+                        echo "Product: ${product}"
+                        def csvFiles = sh(script: "ls ${product}/*.csv", returnStdout: true)
+                                        .trim()
+                                        .split("\n")
+
+                        csvFiles.each{ csvRaw ->
+                            echo "${csvRaw}"
+
+                            def csv = csvRaw.replace('.csv', '')
+
+                            def curEnv = csv.tokenize('_')[3]
+
+                            envFiles[curEnv] << csvRaw
+
+                        }
+                    }
+                }
+            }
+        }
+
         stage('Generate Configs & Copy to Remote') {
             steps {
                 sshagent([env.SSH_KEY]) {
@@ -79,15 +104,12 @@ pipeline {
                         def outputTemplate = readFile('common/template/fluentbit_output_template.conf')
                         def masterTemplate = readFile('common/template/fluentbit_master_template.conf')
 
-                        productFiles.each { product ->
-                            echo "Product: ${product}"
-                            def csvFiles = sh(script: "ls ${product}/*.csv", returnStdout: true)
-                                         .trim()
-                                         .split("\n")
+                        envFiles.each { environment, files ->
+                            echo "Generating Configs for ${environment}"
 
                             def includesBlock  = ""
 
-                            csvFiles.each { file ->
+                            files.each { file ->
                                 def fileName = file
                                     .replace('.csv', '') 
                                     .replace("${product}/",'')
@@ -125,7 +147,7 @@ pipeline {
                                 def outputPath = "${product}/${outputFileName}"
                                 writeFile file: outputPath, text: finalConf
 
-                                includesBlock += "@include /fluent-bit/etc/includes/${product}/fluentbit_config_${product}_{{ENVIRONMENT}}.conf\n"
+                                includesBlock += "@include /fluent-bit/etc/includes/${product}/${fileName}\n"
 
                                 sh """
                                     ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} \
@@ -141,7 +163,7 @@ pipeline {
                                     ? masterTemplate.replace("{{PRODUCT_INCLUDES}}", includesBlock)
                                     : masterTemplate.trim() + "\n" + includesBlock + combinedFilter
 
-                                writeFile file: "master.conf", text: masterConf
+                                writeFile file: "master-${environment}.conf", text: masterConf
                         }
 
                         sh """
@@ -161,37 +183,37 @@ pipeline {
 
                         // Create debug pod, copy configs, run dry-run
                         sh """
-                            ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} '\
-                                ${kubectl} delete pod fluent-bit-debug -n opensearch --ignore-not-found && \
+                            ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} <<'EOF'
+                                ${kubectl} delete pod fluent-bit-debug -n opensearch --ignore-not-found 
                                 ${kubectl} run fluent-bit-debug \
                                     --image=cr.fluentbit.io/fluent/fluent-bit:4.0.7-debug \
                                     --restart=Never \
                                     --namespace=opensearch \
-                                    --command -- sleep 600 && \
-                                ${kubectl} wait --for=condition=Ready pod/fluent-bit-debug -n opensearch --timeout=60s && \
-                                ${kubectl} cp ${REMOTE_PATH}/ opensearch/fluent-bit-debug:/fluent-bit/etc/includes/ && \
-                                ${kubectl} cp ${REMOTE_PATH}/master.conf opensearch/fluent-bit-debug:/fluent-bit/etc/includes/ && \
+                                    --command -- sleep 600 \
+                                ${kubectl} wait --for=condition=Ready pod/fluent-bit-debug -n opensearch --timeout=60s
+                                ${kubectl} cp ${REMOTE_PATH}/ opensearch/fluent-bit-debug:/fluent-bit/etc/includes/
+                                ${kubectl} cp ${REMOTE_PATH}/master.conf opensearch/fluent-bit-debug:/fluent-bit/etc/includes/
 
-                                environment=("dev" "uat" "prod") \
+                                environment=("dev" "uat" "prod")
 
-                                for env in "\${environment[@]}";do \
-                                    ${kubectl} exec fluent-bit-debug -n opensearch -- \
-                                        sed "s/{{ENVIRONMENT}}/\$env/g" /fluent-bit/etc/includes/master.conf > /fluent-bit/etc/fluent-bit.conf && /fluent-bit/bin/fluent-bit --dry-run -c /fluent-bit/etc/fluent-bit.conf -v \
-                                        >> ${dryRunFile} 2>&1 \
-                                done \
-                            '
+                                for env in "\${environment[@]}";do
+                                    ${kubectl} exec fluent-bit-debug -n opensearch \
+                                        sed "s/{{ENVIRONMENT}}/\$env/g" /fluent-bit/etc/includes/master.conf > /fluent-bit/etc/fluent-bit.conf && /fluent-bit/bin/fluent-bit --dry-run -c /fluent-bit/etc/fluent-bit.conf -v
+                                        >> ${dryRunFile} 2>&1
+                                done
+EOF
                         """
 
                         // Check success in remote file
                         def statusCheck = sh(
                             script: """
-                                ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} '\
+                                ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} <<EOF
                                     if [ "$(grep -Fc "configuration test is successful" "${dryRunFile}")" -eq 3 ]; then
                                         echo True
                                     else
                                         echo False
                                     fi
-                                '
+EOF
                             """,
                             returnStdout: true
                         ).trim()
