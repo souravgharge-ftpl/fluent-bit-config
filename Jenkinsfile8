@@ -91,8 +91,8 @@ pipeline {
                                     .replace('.csv', '') 
                                     .replace("${product}/",'')
                                 def csvPath = "${product}/${fileName}.csv"
-                                ENV_NAME = fileName.tokenize('_')[3]
-                                echo "Environment: ${envName}"
+                                env.ENV_NAME = fileName.tokenize('_')[3]
+                                echo "Environment: ${env.ENV_NAME}"
 
                                 def lines = readFile(csvPath).split('\n')
                                 def combinedInput = ""
