@@ -78,14 +78,13 @@ pipeline {
                         def inputTemplate  = readFile('common/template/fluentbit_input_template.conf')
                         def outputTemplate = readFile('common/template/fluentbit_output_template.conf')
                         def masterTemplate = readFile('common/template/fluentbit_master_template.conf')
+                        def includesBlock  = ""
 
                         productFiles.each { product ->
                             echo "Product: ${product}"
                             def csvFiles = sh(script: "ls ${product}/*.csv", returnStdout: true)
                                          .trim()
                                          .split("\n")
-
-                            def includesBlock  = ""
 
                             csvFiles.each { file ->
                                 def fileName = file
@@ -125,27 +124,27 @@ pipeline {
                                 def outputPath = "${product}/${outputFileName}"
                                 writeFile file: outputPath, text: finalConf
 
-                                includesBlock += "@include /fluent-bit/etc/includes/${product}/fluentbit_config_${product}_{{ENVIRONMENT}}.conf\n"
+                                includesBlock += "@include /fluent-bit/etc/includes/${product}/${outputFileName}\n"
 
                                 sh """
                                     ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} \
                                         "mkdir -p ${REMOTE_PATH}/${product}"
                                     scp -o StrictHostKeyChecking=no "${outputPath}" \
                                         fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/${product}/
-                                """   
-                            }
+                                """
 
-                            def combinedFilter = "@include /fluent-bit/etc/includes/common/all-filters.conf\n\n"
+                                def combinedFilter = "@include /fluent-bit/etc/includes/common/all-filters.conf\n\n"
 
                                 def masterConf = masterTemplate.contains("{{PRODUCT_INCLUDES}}")
                                     ? masterTemplate.replace("{{PRODUCT_INCLUDES}}", includesBlock)
                                     : masterTemplate.trim() + "\n" + includesBlock + combinedFilter
 
-                                writeFile file: "master.conf", text: masterConf
+                                writeFile file: "master-${ENV_NAME}.conf", text: masterConf
+                            }
                         }
 
                         sh """
-                            scp -o StrictHostKeyChecking=no master.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/
+                            scp -o StrictHostKeyChecking=no master-*.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/
                         """
                     }
                 }
@@ -170,15 +169,10 @@ pipeline {
                                     --command -- sleep 600 && \
                                 ${kubectl} wait --for=condition=Ready pod/fluent-bit-debug -n opensearch --timeout=60s && \
                                 ${kubectl} cp ${REMOTE_PATH}/ opensearch/fluent-bit-debug:/fluent-bit/etc/includes/ && \
-                                ${kubectl} cp ${REMOTE_PATH}/master.conf opensearch/fluent-bit-debug:/fluent-bit/etc/includes/ && \
-
-                                environment=("dev" "uat" "prod") \
-
-                                for env in "\${environment[@]}";do \
-                                    ${kubectl} exec fluent-bit-debug -n opensearch -- \
-                                        sed "s/{{ENVIRONMENT}}/\$env/g" /fluent-bit/etc/includes/master.conf > /fluent-bit/etc/fluent-bit.conf && /fluent-bit/bin/fluent-bit --dry-run -c /fluent-bit/etc/fluent-bit.conf -v \
-                                        >> ${dryRunFile} 2>&1 \
-                                done \
+                                ${kubectl} cp ${REMOTE_PATH}/master-2.conf opensearch/fluent-bit-debug:/fluent-bit/etc/fluent-bit.conf && \
+                                ${kubectl} exec fluent-bit-debug -n opensearch -- \
+                                    /fluent-bit/bin/fluent-bit --dry-run -c /fluent-bit/etc/fluent-bit.conf -v \
+                                    > ${dryRunFile} 2>&1
                             '
                         """
 
@@ -186,11 +180,7 @@ pipeline {
                         def statusCheck = sh(
                             script: """
                                 ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} '\
-                                    if [ "$(grep -Fc "configuration test is successful" "${dryRunFile}")" -eq 3 ]; then \
-                                        echo True \
-                                    else \
-                                        echo False \
-                                    fi \
+                                    grep -Fq "configuration test is successful" ${dryRunFile} && echo True || echo False
                                 '
                             """,
                             returnStdout: true
