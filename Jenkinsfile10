@@ -110,9 +110,10 @@ pipeline {
                             def includesBlock  = ""
 
                             files.each { file ->
+                                def product = sh(script: "echo ${file} | cut -d '/' -f 1", returnStdout: true).trim()
                                 def fileName = file
                                     .replace('.csv', '') 
-                                    .replace("*/",'')
+                                    .replace("${product}/",'')
                                 ENV_NAME = fileName.tokenize('_')[3]
                                 echo "Environment: ${ENV_NAME}"
 
