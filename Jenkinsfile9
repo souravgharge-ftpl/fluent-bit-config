@@ -2,6 +2,7 @@ def productFiles = ["connecthub", "finsense", "prism"]
 def DRY_RUN_STATUS = "FAIL"
 def safeCommitMsg = ""
 def localDryRunFile = ""
+def ENV_NAME = ''
 
 pipeline {
     agent any
@@ -35,7 +36,7 @@ pipeline {
         }
 
         stage('Get Commit Message') {
-            steps {
+            steps{
                 script {
                     def commitMsg = sh(
                         script: 'git log -1 --pretty=%B',
@@ -48,17 +49,21 @@ pipeline {
             }
         }
 
+
+
         stage('Prepare Remote Directory') {
             steps {
                 sshagent([env.SSH_KEY]) {
                     sh """
                         ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} "\
+                            
                             if [ ! -d "${REMOTE_PATH}" ]; then
                                 git clone ${MASTER_REPO} ${REMOTE_PATH}
                             fi
                             cd ${REMOTE_PATH}
                             git pull origin main
-                        "
+                            "
+
                         scp -o StrictHostKeyChecking=no -r common/all-filters.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/common
                         scp -o StrictHostKeyChecking=no -r common/all-parsers.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/common
                     """
@@ -74,31 +79,24 @@ pipeline {
                         def outputTemplate = readFile('common/template/fluentbit_output_template.conf')
                         def masterTemplate = readFile('common/template/fluentbit_master_template.conf')
 
-                        // Map: product -> env -> includes list
-                        def configMap = [:]
-
                         productFiles.each { product ->
-                            echo "Processing product: ${product}"
+                            echo "Product: ${product}"
                             def csvFiles = sh(script: "ls ${product}/*.csv", returnStdout: true)
-                                             .trim()
-                                             .split("\n")
+                                         .trim()
+                                         .split("\n")
 
                             csvFiles.each { file ->
-                                def fileName = file.replace('.csv', '').replace("${product}/",'')
+                                def fileName = file
+                                    .replace('.csv', '') 
+                                    .replace("${product}/",'')
                                 def csvPath = "${product}/${fileName}.csv"
-                                def ENV_NAME = fileName.tokenize('_')[3]  // extract env from filename
+                                ENV_NAME = fileName.tokenize('_')[3]
                                 echo "Environment: ${ENV_NAME}"
-
-                                if (!configMap.containsKey(product)) {
-                                    configMap[product] = [:]
-                                }
-                                if (!configMap[product].containsKey(ENV_NAME)) {
-                                    configMap[product][ENV_NAME] = []
-                                }
 
                                 def lines = readFile(csvPath).split('\n')
                                 def combinedInput = ""
                                 def combinedOutput = ""
+                                def includesBlock  = ""
 
                                 lines.eachWithIndex { line, idx ->
                                     if (idx == 0 || line.startsWith("#")) return
@@ -126,36 +124,28 @@ pipeline {
                                 def outputPath = "${product}/${outputFileName}"
                                 writeFile file: outputPath, text: finalConf
 
-                                configMap[product][ENV_NAME] << "@include /fluent-bit/etc/includes/${product}/${outputFileName}"
+                                includesBlock += "@include /fluent-bit/etc/includes/${product}/fluentbit_config_${product}_{{ENVIRONMENT}}.conf\n"
 
                                 sh """
                                     ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} \
                                         "mkdir -p ${REMOTE_PATH}/${product}"
                                     scp -o StrictHostKeyChecking=no "${outputPath}" \
                                         fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/${product}/
-                                """
+                                """   
                             }
-                        }
 
-                        // Now build master configs per product+env
-                        configMap.each { product, envs ->
-                            envs.each { ENV_NAME, includesList ->
-                                def includesBlock = includesList.join("\n") + "\n"
-                                def combinedFilter = "@include /fluent-bit/etc/includes/common/all-filters.conf\n\n"
+                            def combinedFilter = "@include /fluent-bit/etc/includes/common/all-filters.conf\n\n"
 
                                 def masterConf = masterTemplate.contains("{{PRODUCT_INCLUDES}}")
                                     ? masterTemplate.replace("{{PRODUCT_INCLUDES}}", includesBlock)
                                     : masterTemplate.trim() + "\n" + includesBlock + combinedFilter
 
-                                def masterFile = "master-${ENV_NAME}.conf"
-                                writeFile file: masterFile, text: masterConf
-
-                                sh """
-                                    scp -o StrictHostKeyChecking=no ${masterFile} \
-                                        fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/
-                                """
-                            }
+                                writeFile file: "master-${ENV_NAME}.conf", text: masterConf
                         }
+
+                        sh """
+                            scp -o StrictHostKeyChecking=no master-*.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/
+                        """
                     }
                 }
             }
