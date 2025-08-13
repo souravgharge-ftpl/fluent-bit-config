@@ -132,15 +132,15 @@ pipeline {
                                     scp -o StrictHostKeyChecking=no "${outputPath}" \
                                         fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/${product}/
                                 """
+
+                                def combinedFilter = "@include /fluent-bit/etc/includes/common/all-filters.conf\n\n"
+
+                                def masterConf = masterTemplate.contains("{{PRODUCT_INCLUDES}}")
+                                    ? masterTemplate.replace("{{PRODUCT_INCLUDES}}", includesBlock)
+                                    : masterTemplate.trim() + "\n" + includesBlock + combinedFilter
+
+                                writeFile file: "master-${product}-${ENV_NAME}.conf", text: masterConf
                             }
-
-                            def combinedFilter = "@include /fluent-bit/etc/includes/common/all-filters.conf\n\n"
-
-                            def masterConf = masterTemplate.contains("{{PRODUCT_INCLUDES}}")
-                                ? masterTemplate.replace("{{PRODUCT_INCLUDES}}", includesBlock)
-                                : masterTemplate.trim() + "\n" + includesBlock + combinedFilter
-
-                            writeFile file: "master-${product}-${ENV_NAME}.conf", text: masterConf
                         }
 
                         sh """
