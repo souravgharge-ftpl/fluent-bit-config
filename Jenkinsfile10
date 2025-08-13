@@ -139,7 +139,7 @@ pipeline {
 
                                 def finalConf = combinedInput + combinedOutput
                                 def outputFileName = "${fileName}.conf"
-                                def outputPath = "${product}/${outputFileName}"
+                                def outputPath = "${WORKSPACE}/${product}/${outputFileName}"
                                 writeFile file: outputPath, text: finalConf
 
                                 includesBlock += "@include /fluent-bit/etc/includes/${product}/${outputFileName}\n"
