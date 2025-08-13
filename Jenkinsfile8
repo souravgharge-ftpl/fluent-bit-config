@@ -92,7 +92,7 @@ pipeline {
                                     .replace("${product}/",'')
                                 def csvPath = "${product}/${fileName}.csv"
                                 env.ENV_NAME = fileName.tokenize('_')[3]
-                                echo "Environment: ${env.ENV_NAME}"
+                                echo "Environment: ${ENV_NAME}"
 
                                 def lines = readFile(csvPath).split('\n')
                                 def combinedInput = ""
@@ -140,7 +140,7 @@ pipeline {
                                 ? masterTemplate.replace("{{PRODUCT_INCLUDES}}", includesBlock)
                                 : masterTemplate.trim() + "\n" + includesBlock + combinedFilter
 
-                            writeFile file: "master-${env.ENV_NAME}.conf", text: masterConf
+                            writeFile file: "master-${ENV_NAME}.conf", text: masterConf
                         }
 
                         sh """
