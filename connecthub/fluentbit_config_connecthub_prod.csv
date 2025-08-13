@@ -1,1 +1,2 @@
-
+#deployment,index,firstline_parser,multiline_parser
+connecthub-2-x-x,connecthub-000001,connecthub_karaf_firstline,connecthub_karaf_continuation
