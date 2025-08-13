@@ -1,0 +1,252 @@
+def productFiles = ["connecthub", "finsense", "prism"]
+def DRY_RUN_STATUS = "FAIL"
+def safeCommitMsg = ""
+def localDryRunFile = ""
+
+pipeline {
+    agent any
+
+    environment {
+        DEV_SERVER     = ''
+        UAT_SERVER     = '13.235.152.196'
+        PROD_SERVER    = ''
+        SSH_KEY        = 'fluent-bit-user'
+        GIT_TOKEN      = 'sourav-github-token'
+        MASTER_REPO    = 'https://github.com/souravgharge-ftpl/fluent-bit-config-master.git'
+        REMOTE_PATH    = '/home/fluent-bit-user/fluent-bit/git-check'
+    }
+
+    stages {
+
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()
+            }
+        }
+
+        stage('Checkout Config Repo') {
+            steps {
+                git(
+                    url: 'https://github.com/souravgharge-ftpl/fluent-bit-config.git',
+                    branch: 'main',
+                    credentialsId: 'sourav-github-token'
+                )
+            }
+        }
+
+        stage('Get Commit Message') {
+            steps {
+                script {
+                    def commitMsg = sh(
+                        script: 'git log -1 --pretty=%B',
+                        returnStdout: true
+                    ).trim()
+                    safeCommitMsg = commitMsg.replace('"', '\\"')
+
+                    echo "Latest commit message: ${safeCommitMsg}"
+                }
+            }
+        }
+
+        stage('Prepare Remote Directory') {
+            steps {
+                sshagent([env.SSH_KEY]) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} "\
+                            if [ ! -d "${REMOTE_PATH}" ]; then
+                                git clone ${MASTER_REPO} ${REMOTE_PATH}
+                            fi
+                            cd ${REMOTE_PATH}
+                            git pull origin main
+                        "
+                        scp -o StrictHostKeyChecking=no -r common/all-filters.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/common
+                        scp -o StrictHostKeyChecking=no -r common/all-parsers.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/common
+                    """
+                }
+            }
+        }
+
+        stage('Generate Configs & Copy to Remote') {
+            steps {
+                sshagent([env.SSH_KEY]) {
+                    script {
+                        def inputTemplate  = readFile('common/template/fluentbit_input_template.conf')
+                        def outputTemplate = readFile('common/template/fluentbit_output_template.conf')
+                        def masterTemplate = readFile('common/template/fluentbit_master_template.conf')
+
+                        // Map: product -> env -> includes list
+                        def configMap = [:]
+
+                        productFiles.each { product ->
+                            echo "Processing product: ${product}"
+                            def csvFiles = sh(script: "ls ${product}/*.csv", returnStdout: true)
+                                             .trim()
+                                             .split("\n")
+
+                            csvFiles.each { file ->
+                                def fileName = file.replace('.csv', '').replace("${product}/",'')
+                                def csvPath = "${product}/${fileName}.csv"
+                                def ENV_NAME = fileName.tokenize('_')[3]  // extract env from filename
+                                echo "Environment: ${ENV_NAME}"
+
+                                if (!configMap.containsKey(product)) {
+                                    configMap[product] = [:]
+                                }
+                                if (!configMap[product].containsKey(ENV_NAME)) {
+                                    configMap[product][ENV_NAME] = []
+                                }
+
+                                def lines = readFile(csvPath).split('\n')
+                                def combinedInput = ""
+                                def combinedOutput = ""
+
+                                lines.eachWithIndex { line, idx ->
+                                    if (idx == 0 || line.startsWith("#")) return
+                                    def (deployment, index, firstline, multiline) = line.split(",", -1)
+                                    deployment = deployment.trim()
+                                    index      = index.trim()
+                                    firstline  = firstline?.trim() ?: ""
+                                    multiline  = multiline?.trim() ?: ""
+
+                                    def parserLine = ""
+                                    if (firstline) parserLine += "    Parser_Firstline    ${firstline}\n"
+                                    if (multiline) parserLine += "    Parser_N            ${multiline}\n"
+
+                                    combinedInput += inputTemplate
+                                        .replace("{{DEPLOYMENT}}", deployment)
+                                        .replace("{{PARSER_LINE}}", parserLine) + "\n"
+
+                                    combinedOutput += outputTemplate
+                                        .replace("{{DEPLOYMENT}}", deployment)
+                                        .replace("{{INDEX}}", index) + "\n"
+                                }
+
+                                def finalConf = combinedInput + combinedOutput
+                                def outputFileName = "${fileName}.conf"
+                                def outputPath = "${product}/${outputFileName}"
+                                writeFile file: outputPath, text: finalConf
+
+                                configMap[product][ENV_NAME] << "@include /fluent-bit/etc/includes/${product}/${outputFileName}"
+
+                                sh """
+                                    ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} \
+                                        "mkdir -p ${REMOTE_PATH}/${product}"
+                                    scp -o StrictHostKeyChecking=no "${outputPath}" \
+                                        fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/${product}/
+                                """
+                            }
+                        }
+
+                        // Now build master configs per product+env
+                        configMap.each { product, envs ->
+                            envs.each { ENV_NAME, includesList ->
+                                def includesBlock = includesList.join("\n") + "\n"
+                                def combinedFilter = "@include /fluent-bit/etc/includes/common/all-filters.conf\n\n"
+
+                                def masterConf = masterTemplate.contains("{{PRODUCT_INCLUDES}}")
+                                    ? masterTemplate.replace("{{PRODUCT_INCLUDES}}", includesBlock)
+                                    : masterTemplate.trim() + "\n" + includesBlock + combinedFilter
+
+                                def masterFile = "master-${ENV_NAME}.conf"
+                                writeFile file: masterFile, text: masterConf
+
+                                sh """
+                                    scp -o StrictHostKeyChecking=no ${masterFile} \
+                                        fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/
+                                """
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Dry Run in Debug Pod (Remote)') {
+            steps {
+                sshagent([env.SSH_KEY]) {
+                    script {
+                        def kubectl = '/home/linuxbrew/.linuxbrew/bin/kubectl'
+                        def dryRunFile = "${REMOTE_PATH}/dry_run_output.txt"
+
+                        // Create debug pod, copy configs, run dry-run
+                        sh """
+                            ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} '\
+                                ${kubectl} delete pod fluent-bit-debug -n opensearch --ignore-not-found && \
+                                ${kubectl} run fluent-bit-debug \
+                                    --image=cr.fluentbit.io/fluent/fluent-bit:4.0.7-debug \
+                                    --restart=Never \
+                                    --namespace=opensearch \
+                                    --command -- sleep 600 && \
+                                ${kubectl} wait --for=condition=Ready pod/fluent-bit-debug -n opensearch --timeout=60s && \
+                                ${kubectl} cp ${REMOTE_PATH}/ opensearch/fluent-bit-debug:/fluent-bit/etc/includes/ && \
+                                ${kubectl} cp ${REMOTE_PATH}/master-2.conf opensearch/fluent-bit-debug:/fluent-bit/etc/fluent-bit.conf && \
+                                ${kubectl} exec fluent-bit-debug -n opensearch -- \
+                                    /fluent-bit/bin/fluent-bit --dry-run -c /fluent-bit/etc/fluent-bit.conf -v \
+                                    > ${dryRunFile} 2>&1
+                            '
+                        """
+
+                        // Check success in remote file
+                        def statusCheck = sh(
+                            script: """
+                                ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} '\
+                                    grep -Fq "configuration test is successful" ${dryRunFile} && echo True || echo False
+                                '
+                            """,
+                            returnStdout: true
+                        ).trim()
+
+                        DRY_RUN_STATUS = (statusCheck == "True") ? "SUCCESS" : "FAIL"
+
+                        localDryRunFile = "${WORKSPACE}/dry_run_output.txt"
+
+                        // Show last lines from remote file
+                        sh """
+                            scp -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER}:${dryRunFile} ${localDryRunFile}
+                            ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} "rm ${dryRunFile}"
+                        """
+
+                        echo "Dry run status: ${DRY_RUN_STATUS}"
+                    }
+                }
+            }
+        }
+
+        stage('Archive Artifacts') {
+            steps {
+                archiveArtifacts artifacts: "**/dry_run_output.txt", allowEmptyArchive: true
+            }
+        }
+
+        stage("Git Push Test (Force Local Changes)") {
+            when {
+                expression { DRY_RUN_STATUS == "SUCCESS" }
+            }
+            steps {
+                sshagent([env.SSH_KEY]) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} '\
+                            cd ${REMOTE_PATH}
+                            git config user.email "souravg@finfactor.in"
+                            git config user.name "souravgharge-ftpl"
+
+                            git add .
+                            git commit -m "${safeCommitMsg}"
+                            git push origin main
+                        '
+                    """
+                }
+            }
+        }
+
+    }
+
+    post {
+        always {
+            echo "Pipeline finished. DRY_RUN_STATUS = ${DRY_RUN_STATUS}"
+        }
+        failure {
+            echo "Pipeline failed. DRY_RUN_STATUS was ${DRY_RUN_STATUS}"
+        }
+    }
+}
