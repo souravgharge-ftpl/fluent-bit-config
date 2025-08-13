@@ -85,6 +85,8 @@ pipeline {
                                          .trim()
                                          .split("\n")
 
+                            def includesBlock  = ""
+
                             csvFiles.each { file ->
                                 def fileName = file
                                     .replace('.csv', '') 
@@ -96,7 +98,6 @@ pipeline {
                                 def lines = readFile(csvPath).split('\n')
                                 def combinedInput = ""
                                 def combinedOutput = ""
-                                def includesBlock  = ""
 
                                 lines.eachWithIndex { line, idx ->
                                     if (idx == 0 || line.startsWith("#")) return
