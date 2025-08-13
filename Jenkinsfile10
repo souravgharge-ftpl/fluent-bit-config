@@ -3,7 +3,7 @@ def DRY_RUN_STATUS = "FAIL"
 def safeCommitMsg = ""
 def localDryRunFile = ""
 def ENV_NAME = ''
-def envFiles = [dev: [], uat: [], prod: []]0
+def envFiles = [dev: [], uat: [], prod: []]
 
 pipeline {
     agent any
@@ -183,7 +183,7 @@ pipeline {
 
                         // Create debug pod, copy configs, run dry-run
                         sh """
-                            ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} <<'EOF'
+                            ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} <<EOF
                                 ${kubectl} delete pod fluent-bit-debug -n opensearch --ignore-not-found 
                                 ${kubectl} run fluent-bit-debug \
                                     --image=cr.fluentbit.io/fluent/fluent-bit:4.0.7-debug \
@@ -207,7 +207,7 @@ EOF
                         // Check success in remote file
                         def statusCheck = sh(
                             script: """
-                                ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} <<'EOF'
+                                ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} <<EOF
                                     if [ "$(grep -Fc "configuration test is successful" "${dryRunFile}")" -eq 3 ]; then
                                         echo True
                                     else
