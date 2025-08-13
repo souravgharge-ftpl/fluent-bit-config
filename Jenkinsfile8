@@ -2,6 +2,7 @@ def productFiles = ["connecthub", "finsense", "prism"]
 def DRY_RUN_STATUS = "FAIL"
 def safeCommitMsg = ""
 def localDryRunFile = ""
+def ENV_NAME = ''
 
 pipeline {
     agent any
@@ -14,7 +15,6 @@ pipeline {
         GIT_TOKEN      = 'sourav-github-token'
         MASTER_REPO    = 'https://github.com/souravgharge-ftpl/fluent-bit-config-master.git'
         REMOTE_PATH    = '/home/fluent-bit-user/fluent-bit/git-check'
-        ENV_NAME       = ''
     }
 
     stages {
@@ -91,7 +91,7 @@ pipeline {
                                     .replace('.csv', '') 
                                     .replace("${product}/",'')
                                 def csvPath = "${product}/${fileName}.csv"
-                                env.ENV_NAME = fileName.tokenize('_')[3]
+                                ENV_NAME = fileName.tokenize('_')[3]
                                 echo "Environment: ${ENV_NAME}"
 
                                 def lines = readFile(csvPath).split('\n')
@@ -140,7 +140,7 @@ pipeline {
                                 ? masterTemplate.replace("{{PRODUCT_INCLUDES}}", includesBlock)
                                 : masterTemplate.trim() + "\n" + includesBlock + combinedFilter
 
-                            writeFile file: "master-${ENV_NAME}.conf", text: masterConf
+                            writeFile file: "master-${product}-${ENV_NAME}.conf", text: masterConf
                         }
 
                         sh """
