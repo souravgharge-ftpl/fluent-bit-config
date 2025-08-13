@@ -170,10 +170,15 @@ pipeline {
                                     --command -- sleep 600 && \
                                 ${kubectl} wait --for=condition=Ready pod/fluent-bit-debug -n opensearch --timeout=60s && \
                                 ${kubectl} cp ${REMOTE_PATH}/ opensearch/fluent-bit-debug:/fluent-bit/etc/includes/ && \
-                                ${kubectl} cp ${REMOTE_PATH}/master-2.conf opensearch/fluent-bit-debug:/fluent-bit/etc/fluent-bit.conf && \
-                                ${kubectl} exec fluent-bit-debug -n opensearch -- \
-                                    /fluent-bit/bin/fluent-bit --dry-run -c /fluent-bit/etc/fluent-bit.conf -v \
-                                    > ${dryRunFile} 2>&1
+                                ${kubectl} cp ${REMOTE_PATH}/master.conf opensearch/fluent-bit-debug:/fluent-bit/etc/includes/ && \
+                                
+                                environment=("dev" "uat" "prod")
+
+                                for env in "\${environment[@]}";do
+                                    ${kubectl} exec fluent-bit-debug -n opensearch -- \
+                                        sed 's/{{ENVIRONMENT}}/\$env/g /fluent-bit/etc/includes/master.conf > /fluent-bit/etc/fluent-bit.conf && /fluent-bit/bin/fluent-bit --dry-run -c /fluent-bit/etc/fluent-bit.conf -v \
+                                        >> ${dryRunFile} 2>&1
+                                done
                             '
                         """
 
@@ -181,7 +186,11 @@ pipeline {
                         def statusCheck = sh(
                             script: """
                                 ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} '\
-                                    grep -Fq "configuration test is successful" ${dryRunFile} && echo True || echo False
+                                    if [ "$(grep -Fc "configuration test is successful" "${dryRunFile}")" -eq 3 ]; then
+                                        echo True
+                                    else
+                                        echo False
+                                    fi
                                 '
                             """,
                             returnStdout: true
