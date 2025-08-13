@@ -2,7 +2,6 @@ def productFiles = ["connecthub", "finsense", "prism"]
 def DRY_RUN_STATUS = "FAIL"
 def safeCommitMsg = ""
 def localDryRunFile = ""
-def ENV_NAME = ''
 def envFiles = [dev: [], uat: [], prod: []]
 
 pipeline {
@@ -76,7 +75,6 @@ pipeline {
             steps {
                 script {
                     productFiles.each { product ->
-                        echo "Product: ${product}"
                         def csvFiles = sh(script: "ls ${product}/*.csv", returnStdout: true)
                                         .trim()
                                         .split("\n")
@@ -105,7 +103,7 @@ pipeline {
                         def masterTemplate = readFile('common/template/fluentbit_master_template.conf')
 
                         envFiles.each { environment, files ->
-                            echo "Generating Configs for ${environment}"
+                            echo "Generating Configs for ${product}"
 
                             def includesBlock  = ""
 
@@ -114,8 +112,6 @@ pipeline {
                                 def fileName = file
                                     .replace('.csv', '') 
                                     .replace("${product}/",'')
-                                ENV_NAME = fileName.tokenize('_')[3]
-                                echo "Environment: ${ENV_NAME}"
 
                                 def lines = readFile(file).split('\n')
                                 def combinedInput = ""
@@ -167,7 +163,7 @@ pipeline {
                         }
 
                         sh """
-                            scp -o StrictHostKeyChecking=no master.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/
+                            scp -o StrictHostKeyChecking=no master-dev.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/
                         """
                     }
                 }
@@ -192,13 +188,13 @@ pipeline {
                                     --command -- sleep 600 \
                                 ${kubectl} wait --for=condition=Ready pod/fluent-bit-debug -n opensearch --timeout=60s
                                 ${kubectl} cp ${REMOTE_PATH}/ opensearch/fluent-bit-debug:/fluent-bit/etc/includes/
-                                ${kubectl} cp ${REMOTE_PATH}/master.conf opensearch/fluent-bit-debug:/fluent-bit/etc/includes/
+                                ${kubectl} cp ${REMOTE_PATH}/master-dev.conf opensearch/fluent-bit-debug:/fluent-bit/etc/includes/
 
                                 environment=("dev" "uat" "prod")
 
                                 for env in "\${environment[@]}";do
                                     ${kubectl} exec fluent-bit-debug -n opensearch \
-                                        sed "s/{{ENVIRONMENT}}/\$env/g" /fluent-bit/etc/includes/master.conf > /fluent-bit/etc/fluent-bit.conf && \
+                                        sed "s/{{ENVIRONMENT}}/\$env/g" /fluent-bit/etc/includes/master-dev.conf > /fluent-bit/etc/fluent-bit.conf && \
                                         /fluent-bit/bin/fluent-bit --dry-run -c /fluent-bit/etc/fluent-bit.conf -v >> ${dryRunFile} 2>&1
                                 done
 EOF
