@@ -198,7 +198,7 @@ EOF
                         def statusCheck = sh(
                             script: """
                                 ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} <<EOF
-                                    if [ "\$(grep -Fc "configuration test is successful" "${dryRunFile}")" -eq 3 ]; then
+                                    if [ "\$(grep -Fc "configuration test is successful" "${REMOTE_PATH}/${dryRunFile}")" -eq 3 ]; then
                                         echo True
                                     else
                                         echo False
