@@ -1,1 +1,10 @@
-
+#deployment,index,firstline_parser,multiline_parser
+finsense-pfm-axis,alias-pfm-axis-1,custom_parser,
+finsense-axis-job,alias-pfm-axis-1,custom_parser,
+finsense-axis,finsense-axis-000001,finsense_java_multiline,
+finsentinel-axis,alias-pfm-axis-1,custom_parser,
+finsense-pfm-canara-12jun24,alias-pfm-canara-1,custom_parser,
+finsense001-2-x-x,alias-finsense-multitenant-1,finsense_java_multiline,
+finsense001-2-x-x,finsense-mt-op-000001,opentelemetry_parser,
+finsense-hdfcsme-2-x-x-27-june,hdfcsme-000001,finsense_pattern,finsense_java_multiline
+finsense001-v1-2-x-x,finsense-mt-op-000001,finsense_pattern,finsense_java_multiline
