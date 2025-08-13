@@ -103,7 +103,6 @@ pipeline {
                         def masterTemplate = readFile('common/template/fluentbit_master_template.conf')
 
                         envFiles.each { environment, files ->
-                            echo "Generating Configs for ${product}"
 
                             def includesBlock  = ""
 
