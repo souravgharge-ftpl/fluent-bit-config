@@ -112,12 +112,11 @@ pipeline {
                             files.each { file ->
                                 def fileName = file
                                     .replace('.csv', '') 
-                                    .replace("${product}/",'')
-                                def csvPath = "${product}/${fileName}.csv"
+                                    .replace("*/",'')
                                 ENV_NAME = fileName.tokenize('_')[3]
                                 echo "Environment: ${ENV_NAME}"
 
-                                def lines = readFile(csvPath).split('\n')
+                                def lines = readFile(file).split('\n')
                                 def combinedInput = ""
                                 def combinedOutput = ""
 
@@ -183,7 +182,7 @@ pipeline {
 
                         // Create debug pod, copy configs, run dry-run
                         sh """
-                            ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} <<EOF
+                            ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} <<'EOF'
                                 ${kubectl} delete pod fluent-bit-debug -n opensearch --ignore-not-found 
                                 ${kubectl} run fluent-bit-debug \
                                     --image=cr.fluentbit.io/fluent/fluent-bit:4.0.7-debug \
@@ -198,8 +197,8 @@ pipeline {
 
                                 for env in "\${environment[@]}";do
                                     ${kubectl} exec fluent-bit-debug -n opensearch \
-                                        sed "s/{{ENVIRONMENT}}/\$env/g" /fluent-bit/etc/includes/master.conf > /fluent-bit/etc/fluent-bit.conf && /fluent-bit/bin/fluent-bit --dry-run -c /fluent-bit/etc/fluent-bit.conf -v
-                                        >> ${dryRunFile} 2>&1
+                                        sed "s/{{ENVIRONMENT}}/\$env/g" /fluent-bit/etc/includes/master.conf > /fluent-bit/etc/fluent-bit.conf && \ 
+                                        /fluent-bit/bin/fluent-bit --dry-run -c /fluent-bit/etc/fluent-bit.conf -v >> ${dryRunFile} 2>&1
                                 done
 EOF
                         """
@@ -207,8 +206,8 @@ EOF
                         // Check success in remote file
                         def statusCheck = sh(
                             script: """
-                                ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} <<EOF
-                                    if [ "$(grep -Fc "configuration test is successful" "${dryRunFile}")" -eq 3 ]; then
+                                ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} <<'EOF'
+                                    if [ "\$(grep -Fc "configuration test is successful" "${dryRunFile}")" -eq 3 ]; then
                                         echo True
                                     else
                                         echo False
