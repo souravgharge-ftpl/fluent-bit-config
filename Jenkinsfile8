@@ -138,9 +138,8 @@ pipeline {
                                 def masterConf = masterTemplate.contains("{{PRODUCT_INCLUDES}}")
                                     ? masterTemplate.replace("{{PRODUCT_INCLUDES}}", includesBlock)
                                     : masterTemplate.trim() + "\n" + includesBlock + combinedFilter
-
-                                writeFile file: "master-${product}-${ENV_NAME}.conf", text: masterConf
                             }
+                            writeFile file: "master-${product}-${ENV_NAME}.conf", text: masterConf
                         }
 
                         sh """
