@@ -2,8 +2,7 @@ def productFiles = ["connecthub", "finsense", "prism"]
 def DRY_RUN_STATUS = "FAIL"
 def safeCommitMsg = ""
 def localDryRunFile = ""
-def ENV_NAME = ''
-def envFiles = [dev: [], uat: [], prod: []]0
+def envFiles = [dev: [], uat: [], prod: []]
 
 pipeline {
     agent any
@@ -76,7 +75,6 @@ pipeline {
             steps {
                 script {
                     productFiles.each { product ->
-                        echo "Product: ${product}"
                         def csvFiles = sh(script: "ls ${product}/*.csv", returnStdout: true)
                                         .trim()
                                         .split("\n")
@@ -105,19 +103,17 @@ pipeline {
                         def masterTemplate = readFile('common/template/fluentbit_master_template.conf')
 
                         envFiles.each { environment, files ->
-                            echo "Generating Configs for ${environment}"
+                            echo "Generating Configs for ${product}"
 
                             def includesBlock  = ""
 
                             files.each { file ->
+                                def product = sh(script: "echo ${file} | cut -d '/' -f 1", returnStdout: true).trim()
                                 def fileName = file
                                     .replace('.csv', '') 
                                     .replace("${product}/",'')
-                                def csvPath = "${product}/${fileName}.csv"
-                                ENV_NAME = fileName.tokenize('_')[3]
-                                echo "Environment: ${ENV_NAME}"
 
-                                def lines = readFile(csvPath).split('\n')
+                                def lines = readFile(file).split('\n')
                                 def combinedInput = ""
                                 def combinedOutput = ""
 
@@ -192,14 +188,14 @@ pipeline {
                                     --command -- sleep 600 \
                                 ${kubectl} wait --for=condition=Ready pod/fluent-bit-debug -n opensearch --timeout=60s
                                 ${kubectl} cp ${REMOTE_PATH}/ opensearch/fluent-bit-debug:/fluent-bit/etc/includes/
-                                ${kubectl} cp ${REMOTE_PATH}/master.conf opensearch/fluent-bit-debug:/fluent-bit/etc/includes/
+                                ${kubectl} cp ${REMOTE_PATH}/master-dev.conf opensearch/fluent-bit-debug:/fluent-bit/etc/includes/
 
                                 environment=("dev" "uat" "prod")
 
                                 for env in "\${environment[@]}";do
                                     ${kubectl} exec fluent-bit-debug -n opensearch \
-                                        sed "s/{{ENVIRONMENT}}/\$env/g" /fluent-bit/etc/includes/master.conf > /fluent-bit/etc/fluent-bit.conf && /fluent-bit/bin/fluent-bit --dry-run -c /fluent-bit/etc/fluent-bit.conf -v
-                                        >> ${dryRunFile} 2>&1
+                                        sed "s/{{ENVIRONMENT}}/\$env/g" /fluent-bit/etc/includes/master-dev.conf > /fluent-bit/etc/fluent-bit.conf && \
+                                        /fluent-bit/bin/fluent-bit --dry-run -c /fluent-bit/etc/fluent-bit.conf -v >> ${dryRunFile} 2>&1
                                 done
 EOF
                         """
@@ -207,8 +203,8 @@ EOF
                         // Check success in remote file
                         def statusCheck = sh(
                             script: """
-                                ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} <<EOF
-                                    if [ "$(grep -Fc "configuration test is successful" "${dryRunFile}")" -eq 3 ]; then
+                                ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} <<'EOF'
+                                    if [ "\$(grep -Fc "configuration test is successful" "${dryRunFile}")" -eq 3 ]; then
                                         echo True
                                     else
                                         echo False
