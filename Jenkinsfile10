@@ -238,7 +238,7 @@ EOF
 
         stage("Git Push Test (Env Specific Branches)") {
             when {
-                expression { DRY_RUN_STATUS == "SUCCESS" }
+                expression { DRY_RUN_STATUS == "FAIL" }
             }
             steps {
                 sshagent([env.SSH_KEY]) {
