@@ -186,13 +186,19 @@ pipeline {
                                     --namespace=opensearch \
                                     --command -- sleep 600 && \
                                 ${kubectl} wait --for=condition=Ready pod/fluent-bit-debug -n opensearch --timeout=60s && \
-                                ${kubectl} cp ${REMOTE_PATH}/ opensearch/fluent-bit-debug:/fluent-bit/etc/includes/ && \
-                                ${kubectl} cp ${REMOTE_PATH}/master-dev.conf opensearch/fluent-bit-debug:/fluent-bit/etc/fluent-bit.conf && \
-                                ${kubectl} exec fluent-bit-debug -n opensearch -- \
-                                    /fluent-bit/bin/fluent-bit --dry-run -c /fluent-bit/etc/fluent-bit.conf -v \
-                                    > ${dryRunFile} 2>&1
+                                ${kubectl} cp ${REMOTE_PATH}/ opensearch/fluent-bit-debug:/fluent-bit/etc/includes/
 EOF
                         """
+
+                        envFiles.each { environment ->
+                            sh """
+                                ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} "\
+                                    ${kubectl} cp ${REMOTE_PATH}/master-${environment}.conf opensearch/fluent-bit-debug:/fluent-bit/etc/fluent-bit.conf && \
+                                    ${kubectl} exec fluent-bit-debug -n opensearch -- \
+                                        /fluent-bit/bin/fluent-bit --dry-run -c /fluent-bit/etc/fluent-bit.conf -v \
+                                        >> ${dryRunFile} 2>&1"
+                            """
+                        }
 
                         // Check success in remote file
                         def statusCheck = sh(
