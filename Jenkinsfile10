@@ -190,7 +190,7 @@ pipeline {
 EOF
                         """
 
-                        envFiles.each { environment ->
+                        envFiles.keySet().each { environment ->
                             sh """
                                 ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} "\
                                     ${kubectl} cp ${REMOTE_PATH}/master-${environment}.conf opensearch/fluent-bit-debug:/fluent-bit/etc/fluent-bit.conf && \
