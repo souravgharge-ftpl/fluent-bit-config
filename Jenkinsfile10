@@ -162,7 +162,7 @@ pipeline {
                         }
 
                         sh """
-                            scp -o StrictHostKeyChecking=no master-dev.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/
+                            scp -o StrictHostKeyChecking=no master-*.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/
                         """
                     }
                 }
