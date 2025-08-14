@@ -61,7 +61,7 @@ pipeline {
                                 git clone ${MASTER_REPO} ${REMOTE_PATH}
                             fi
                             cd ${REMOTE_PATH}
-                            git pull origin main
+                            git fetch origin
                             "
 
                         scp -o StrictHostKeyChecking=no -r common/all-filters.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/common
@@ -230,23 +230,39 @@ EOF
             }
         }
 
-        stage("Git Push Test (Force Local Changes)") {
+        stage("Git Push Test (Env Specific Branches)") {
             when {
                 expression { DRY_RUN_STATUS == "SUCCESS" }
             }
             steps {
                 sshagent([env.SSH_KEY]) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} '\
-                            cd ${REMOTE_PATH}
-                            git config user.email "souravg@finfactor.in"
-                            git config user.name "souravgharge-ftpl"
+                    script {
+                        envFiles.each { environment, files ->
+                            if (files && files.size() > 0){
+                                echo "Pushing ${environment} configs to branch ${environment}"
+                                sh """
+                                    ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} '\
+                                        cd ${REMOTE_PATH}
+                                        git fetch origin
+                                        git checkout -B ${environment} origin/${environment} || git checkout -b ${environment}
+                                        git pull origin ${environment} || true
 
-                            git add .
-                            git commit -m "${safeCommitMsg}"
-                            git push origin main
-                        '
-                    """
+                                        git add master-${environment}.conf common/all-parsers.conf common/all-filters.conf
+                                        ${files.collect { f -> "git add ${f}" }.join(" && ")}
+
+                                        if ! git diff --cached --quiet; then
+                                            git config user.email "souravg@finfactor.in"
+                                            git config user.name "souravgharge-ftpl"
+                                            git commit -m "${safeCommitMsg} [${environment}]"
+                                            git push origin ${environment}
+                                        else
+                                            echo "No changes for ${environment} branch"
+                                        fi
+                                            '
+                                """
+                            }
+                        }
+                    }
                 }
             }
         }
