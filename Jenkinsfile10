@@ -177,7 +177,7 @@ pipeline {
                 sshagent([env.SSH_KEY]) {
                     script {
                         def kubectl = '/home/linuxbrew/.linuxbrew/bin/kubectl'
-                        def dryRunFile = "${REMOTE_PATH}/dry_run_output.txt"
+                        def dryRunFile = "${REMOTE_PATH}/dry_run_output-2.txt"
 
                         // Create debug pod, copy configs, run dry-run
                         sh """
