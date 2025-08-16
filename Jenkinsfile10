@@ -56,16 +56,19 @@ pipeline {
                 sshagent([env.SSH_KEY]) {
                     sh """
                         ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} "\
+                            mkdir -p ${REMOTE_PATH}/common
                             
-                            if [ ! -d "${REMOTE_PATH}" ]; then
+                            if [ ! -d '${REMOTE_PATH}/.git' ]; then
+                                rm -rf ${REMOTE_PATH} && \
                                 git clone ${MASTER_REPO} ${REMOTE_PATH}
                             fi
+
                             cd ${REMOTE_PATH}
                             git fetch origin
                             "
 
-                        scp -o StrictHostKeyChecking=no -r common/all-filters.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/common
-                        scp -o StrictHostKeyChecking=no -r common/all-parsers.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/common
+                        scp -o StrictHostKeyChecking=no -r common/all-filters.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}
+                        scp -o StrictHostKeyChecking=no -r common/all-parsers.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}
                     """
                 }
             }
