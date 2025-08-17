@@ -241,9 +241,9 @@ pipeline {
                                         cp ${REMOTE_PATH}/${environment}/master-${environment}.conf ./
                                         cp ${REMOTE_PATH}/${environment}/common/all-parsers.conf common/
                                         cp ${REMOTE_PATH}/${environment}/common/all-filters.conf common/
-                                        cp ${REMOTE_PATH}/${environment}/finsense/ finsense/
-                                        cp ${REMOTE_PATH}/${environment}/prism/ prism/
-                                        cp ${REMOTE_PATH}/${environment}/connecthub/ connecthub/
+                                        cp -r ${REMOTE_PATH}/${environment}/finsense/ finsense/
+                                        cp -r ${REMOTE_PATH}/${environment}/prism/ prism/
+                                        cp -r ${REMOTE_PATH}/${environment}/connecthub/ connecthub/
 
                                         git add master-${environment}.conf common/all-parsers.conf common/all-filters.conf finsense connecthub prism
                                         if ! git diff --cached --quiet; then
