@@ -13,7 +13,7 @@ pipeline {
         PROD_SERVER    = ''
         SSH_KEY        = 'fluent-bit-user'
         GIT_TOKEN      = 'sourav-github-token'
-        MASTER_REPO    = 'https://github.com/souravgharge-ftpl/testrepo.git'
+        MASTER_REPO    = 'git@github.com:souravgharge-ftpl/fluent-bit-config-master.git'
         REMOTE_PATH    = '/home/fluent-bit-user/fluent-bit/generated'
     }
 
