@@ -154,10 +154,10 @@ pipeline {
                                 ? masterTemplate.replace("{{PRODUCT_INCLUDES}}", includesBlock)
                                 : masterTemplate.trim() + "\n" + includesBlock + combinedFilter
 
-                            writeFile file: "${environment}/master-${environment}.conf", text: masterConf
-                        }
+                            writeFile file: "master-${environment}.conf", text: masterConf
 
-                        sh "scp -o StrictHostKeyChecking=no master-*.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/"
+                            sh "scp -o StrictHostKeyChecking=no master-${environment}.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/${environment}"
+                        }
                     }
                 }
             }
