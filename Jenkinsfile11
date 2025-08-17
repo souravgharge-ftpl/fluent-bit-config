@@ -178,6 +178,7 @@ pipeline {
                     script {
                         def kubectl = '/home/linuxbrew/.linuxbrew/bin/kubectl'
                         def dryRunFile = "${REMOTE_PATH}/dry_run_output.txt"
+                        localDryRunFile = "${WORKSPACE}/dry_run_output.txt"
 
                         // Create debug pod, copy configs, run dry-run
                         sh """
@@ -203,29 +204,24 @@ EOF
                             """
                         }
 
+                        sh """
+                            scp -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER}:${dryRunFile} ${localDryRunFile}
+                            ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} "rm ${dryRunFile}"
+                        """
+
                         // Check success in remote file
                         def statusCheck = sh(
                             script: """
-                                ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} <<EOF
-                                    if [ \$(grep -Fc "configuration test is successful" ${dryRunFile}) -eq 3 ]; then
-                                        echo "true"
-                                    else
-                                        echo "false"
-                                    fi
-EOF
+                                if [ \$(grep -Fc "configuration test is successful" ${localDryRunFile}) -eq 3 ]; then
+                                    echo "true"
+                                else
+                                    echo "false"
+                                fi
                             """,
                             returnStdout: true
                         ).trim()
 
                         DRY_RUN_STATUS = (statusCheck == "true") ? "SUCCESS" : "FAIL"
-
-                        localDryRunFile = "${WORKSPACE}/dry_run_output.txt"
-
-                        // Show last lines from remote file
-                        sh """
-                            scp -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER}:${dryRunFile} ${localDryRunFile}
-                            ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} "rm ${dryRunFile}"
-                        """
 
                         echo "Dry run status: ${DRY_RUN_STATUS}"
                     }
