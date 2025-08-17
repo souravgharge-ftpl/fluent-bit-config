@@ -182,7 +182,7 @@ pipeline {
                         envFiles.keySet().each { environment ->
                             sh """
                                 ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} '
-                                    ${kubectl} cp ${REMOTE_PATH}/${environment} opensearch/fluent-bit-debug:/fluent-bit/etc/includes/
+                                    ${kubectl} cp ${REMOTE_PATH}/${environment}/. opensearch/fluent-bit-debug:/fluent-bit/etc/includes/
                                     ${kubectl} cp ${REMOTE_PATH}/${environment}/master-${environment}.conf opensearch/fluent-bit-debug:/fluent-bit/etc/fluent-bit.conf
                                     ${kubectl} exec fluent-bit-debug -n opensearch -- \
                                         /fluent-bit/bin/fluent-bit --dry-run -c /fluent-bit/etc/fluent-bit.conf -v \
