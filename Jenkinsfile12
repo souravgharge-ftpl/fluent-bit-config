@@ -52,8 +52,15 @@ pipeline {
                     script {
                         envFiles.keySet().each { environment ->
                             sh """
-                                ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} \
-                                    "mkdir -p ${REMOTE_PATH}/${environment}/common"
+                                ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} '
+                                    mkdir -p ${REMOTE_PATH}/${environment}
+                                    mkdir -p ${REMOTE_PATH}/${environment}/common
+                                    mkdir -p ${REMOTE_PATH}/${environment}/repo
+                                    mkdir -p ${REMOTE_PATH}/${environment}/repo/common
+                                    mkdir -p ${REMOTE_PATH}/${environment}/repo/finsense
+                                    mkdir -p ${REMOTE_PATH}/${environment}/repo/prism
+                                    mkdir -p ${REMOTE_PATH}/${environment}/repo/connecthub
+                                '
                                 scp -o StrictHostKeyChecking=no common/all-filters.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/${environment}/common/
                                 scp -o StrictHostKeyChecking=no common/all-parsers.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/${environment}/common/
                             """
@@ -231,10 +238,14 @@ pipeline {
                                         git fetch origin
                                         git checkout ${environment} || git checkout -b ${environment}
                                         git reset --hard origin/${environment} || true
-                                        cp ${REMOTE_PATH}/master-${environment}.conf ./
+                                        cp ${REMOTE_PATH}/${environment}/master-${environment}.conf ./
                                         cp ${REMOTE_PATH}/${environment}/common/all-parsers.conf common/
                                         cp ${REMOTE_PATH}/${environment}/common/all-filters.conf common/
-                                        git add master-${environment}.conf common/all-parsers.conf common/all-filters.conf
+                                        cp ${REMOTE_PATH}/${environment}/finsense/ finsense/
+                                        cp ${REMOTE_PATH}/${environment}/prism/ prism/
+                                        cp ${REMOTE_PATH}/${environment}/connecthub/ connecthub/
+
+                                        git add master-${environment}.conf common/all-parsers.conf common/all-filters.conf finsense connecthub prism
                                         if ! git diff --cached --quiet; then
                                             git config user.email "souravg@finfactor.in"
                                             git config user.name "souravgharge-ftpl"
