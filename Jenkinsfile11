@@ -1,0 +1,283 @@
+def productFiles = ["connecthub", "finsense", "prism"]
+def DRY_RUN_STATUS = "FAIL"
+def safeCommitMsg = ""
+def localDryRunFile = ""
+def envFiles = [dev: [], uat: [], prod: []]
+
+pipeline {
+    agent any
+
+    environment {
+        DEV_SERVER     = ''
+        UAT_SERVER     = '13.235.152.196'
+        PROD_SERVER    = ''
+        SSH_KEY        = 'fluent-bit-user'
+        GIT_TOKEN      = 'sourav-github-token'
+        MASTER_REPO    = 'https://github.com/souravgharge-ftpl/fluent-bit-config-master.git'
+        REMOTE_PATH    = '/home/fluent-bit-user/fluent-bit/git-check'
+    }
+
+    stages {
+
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()
+            }
+        }
+
+        stage('Checkout Config Repo') {
+            steps {
+                git(
+                    url: 'https://github.com/souravgharge-ftpl/fluent-bit-config.git',
+                    branch: 'main',
+                    credentialsId: 'sourav-github-token'
+                )
+            }
+        }
+
+        stage('Get Commit Message') {
+            steps{
+                script {
+                    def commitMsg = sh(
+                        script: 'git log -1 --pretty=%B',
+                        returnStdout: true
+                    ).trim()
+                    safeCommitMsg = commitMsg.replace('"', '\\"')
+
+                    echo "Latest commit message: ${safeCommitMsg}"
+                }
+            }
+        }
+
+
+
+        stage('Prepare Remote Directory') {
+            steps {
+                sshagent([env.SSH_KEY]) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} "\
+                            mkdir -p ${REMOTE_PATH}/common
+                            
+                            if [ ! -d '${REMOTE_PATH}/.git' ]; then
+                                rm -rf ${REMOTE_PATH} && \
+                                git clone ${MASTER_REPO} ${REMOTE_PATH}
+                            fi
+
+                            cd ${REMOTE_PATH}
+                            git fetch origin
+                            "
+
+                        scp -o StrictHostKeyChecking=no -r common/all-filters.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/common
+                        scp -o StrictHostKeyChecking=no -r common/all-parsers.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/common
+                    """
+                }
+            }
+        }
+
+        stage('Map files to environment') {
+            steps {
+                script {
+                    productFiles.each { product ->
+                        def csvFiles = sh(script: "ls ${product}/*.csv", returnStdout: true)
+                                        .trim()
+                                        .split("\n")
+
+                        csvFiles.each{ csvRaw ->
+                            echo "${csvRaw}"
+
+                            def csv = csvRaw.replace('.csv', '')
+
+                            def curEnv = csv.tokenize('_')[3]
+
+                            envFiles[curEnv] << csvRaw
+
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Generate Configs & Copy to Remote') {
+            steps {
+                sshagent([env.SSH_KEY]) {
+                    script {
+                        def inputTemplate  = readFile('common/template/fluentbit_input_template.conf')
+                        def outputTemplate = readFile('common/template/fluentbit_output_template.conf')
+                        def masterTemplate = readFile('common/template/fluentbit_master_template.conf')
+
+                        envFiles.each { environment, files ->
+
+                            def includesBlock  = ""
+
+                            files.each { file ->
+                                def product = sh(script: "echo ${file} | cut -d '/' -f 1", returnStdout: true).trim()
+                                def fileName = file
+                                    .replace('.csv', '') 
+                                    .replace("${product}/",'')
+
+                                def lines = readFile(file).split('\n')
+                                def combinedInput = ""
+                                def combinedOutput = ""
+
+                                lines.eachWithIndex { line, idx ->
+                                    if (idx == 0 || line.startsWith("#")) return
+                                    def (deployment, index, firstline, multiline) = line.split(",", -1)
+                                    deployment = deployment.trim()
+                                    index      = index.trim()
+                                    firstline  = firstline?.trim() ?: ""
+                                    multiline  = multiline?.trim() ?: ""
+
+                                    def parserLine = ""
+                                    if (firstline) parserLine += "    Parser_Firstline    ${firstline}\n"
+                                    if (multiline) parserLine += "    Parser_N            ${multiline}\n"
+
+                                    combinedInput += inputTemplate
+                                        .replace("{{DEPLOYMENT}}", deployment)
+                                        .replace("{{PARSER_LINE}}", parserLine) + "\n"
+
+                                    combinedOutput += outputTemplate
+                                        .replace("{{DEPLOYMENT}}", deployment)
+                                        .replace("{{INDEX}}", index) + "\n"
+                                }
+
+                                def finalConf = combinedInput + combinedOutput
+                                def outputFileName = "${fileName}.conf"
+                                def outputPath = "${product}/${outputFileName}"
+                                writeFile file: outputPath, text: finalConf
+
+                                includesBlock += "@include /fluent-bit/etc/includes/${product}/${outputFileName}\n"
+
+                                sh """
+                                    ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} \
+                                        "mkdir -p ${REMOTE_PATH}/${product}"
+                                    scp -o StrictHostKeyChecking=no "${outputPath}" \
+                                        fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/${product}/
+                                """   
+                            }
+
+                            def combinedFilter = "@include /fluent-bit/etc/includes/common/all-filters.conf\n\n"
+
+                                def masterConf = masterTemplate.contains("{{PRODUCT_INCLUDES}}")
+                                    ? masterTemplate.replace("{{PRODUCT_INCLUDES}}", includesBlock)
+                                    : masterTemplate.trim() + "\n" + includesBlock + combinedFilter
+
+                                writeFile file: "master-${environment}.conf", text: masterConf
+                        }
+
+                        sh """
+                            scp -o StrictHostKeyChecking=no master-*.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Dry Run in Debug Pod (Remote)') {
+            steps {
+                sshagent([env.SSH_KEY]) {
+                    script {
+                        def kubectl = '/home/linuxbrew/.linuxbrew/bin/kubectl'
+                        def dryRunFile = "${REMOTE_PATH}/dry_run_output.txt"
+
+                        // Create debug pod, copy configs, run dry-run
+                        sh """
+                            ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} <<EOF
+                                ${kubectl} delete pod fluent-bit-debug -n opensearch --ignore-not-found && \
+                                ${kubectl} run fluent-bit-debug \
+                                    --image=cr.fluentbit.io/fluent/fluent-bit:4.0.7-debug \
+                                    --restart=Never \
+                                    --namespace=opensearch \
+                                    --command -- sleep 600 && \
+                                ${kubectl} wait --for=condition=Ready pod/fluent-bit-debug -n opensearch --timeout=60s && \
+                                ${kubectl} cp ${REMOTE_PATH}/ opensearch/fluent-bit-debug:/fluent-bit/etc/includes/
+EOF
+                        """
+
+                        envFiles.keySet().each { environment ->
+                            sh """
+                                ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} "\
+                                    ${kubectl} cp ${REMOTE_PATH}/master-${environment}.conf opensearch/fluent-bit-debug:/fluent-bit/etc/fluent-bit.conf && \
+                                    ${kubectl} exec fluent-bit-debug -n opensearch -- \
+                                        /fluent-bit/bin/fluent-bit --dry-run -c /fluent-bit/etc/fluent-bit.conf -v \
+                                        >> ${dryRunFile} 2>&1"
+                            """
+                        }
+
+                        // Check success in remote file
+                        def statusCheck = sh(
+                            script: """
+                                ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} <<EOF
+                                    if [ \$(grep -Fc "configuration test is successful" ${dryRunFile}) -eq 3 ]; then
+                                        echo "true"
+                                    else
+                                        echo "false"
+                                    fi
+EOF
+                            """,
+                            returnStdout: true
+                        ).trim()
+
+                        DRY_RUN_STATUS = (statusCheck == "true") ? "SUCCESS" : "FAIL"
+
+                        localDryRunFile = "${WORKSPACE}/dry_run_output.txt"
+
+                        // Show last lines from remote file
+                        sh """
+                            scp -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER}:${dryRunFile} ${localDryRunFile}
+                            ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} "rm ${dryRunFile}"
+                        """
+
+                        echo "Dry run status: ${DRY_RUN_STATUS}"
+                    }
+                }
+            }
+        }
+
+        stage('Archive Artifacts') {
+            steps {
+                archiveArtifacts artifacts: "**/dry_run_output.txt", allowEmptyArchive: true
+            }
+        }
+
+        stage("Push Configs to Target Repo") {
+            when { expression { DRY_RUN_STATUS == "SUCCESS" } }
+            steps {
+                sshagent([env.SSH_KEY]) {
+                    script {
+                        envFiles.each { environment, files ->
+                            if (files && files.size() > 0){
+                                echo "Pushing ${environment} configs to target branch ${environment}"
+                                sh """
+                                    ssh -o StrictHostKeyChecking=no ${SSH_KEY}@${UAT_SERVER} '\
+                                        cd ${REMOTE_PATH} && \
+                                        git checkout -B ${environment} origin/${environment} || git checkout -b ${environment} && \
+                                        git pull origin ${environment} || true && \
+                                        git add master-${environment}.conf common/all-parsers.conf common/all-filters.conf && \
+                                        if ! git diff --cached --quiet; then
+                                            git config user.email "souravg@finfactor.in"
+                                            git config user.name "souravgharge-ftpl"
+                                            git commit -m "${safeCommitMsg} [${environment}]" && \
+                                            git push origin ${environment}
+                                        else
+                                            echo "No changes for ${environment} branch"
+                                        fi
+                                    '
+                                """
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+    }
+
+    post {
+        always {
+            echo "Pipeline finished. DRY_RUN_STATUS = ${DRY_RUN_STATUS}"
+        }
+        failure {
+            echo "Pipeline failed. DRY_RUN_STATUS was ${DRY_RUN_STATUS}"
+        }
+    }
+}
