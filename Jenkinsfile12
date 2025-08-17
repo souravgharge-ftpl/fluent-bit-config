@@ -196,9 +196,11 @@ pipeline {
 
                         def statusCheck = sh(
                             script: """
-                                expected=${envFiles.keySet().size()}
-                                actual=$(grep -Fc "configuration test is successful" ${localDryRunFile})
-                                if [ "$expected" -eq "$actual" ]; then echo "true"; else echo "false"; fi
+                                if [ \$(grep -Fc "configuration test is successful" ${localDryRunFile}) -eq 3 ]; then
+                                    echo "true"
+                                else
+                                    echo "false"
+                                fi
                             """,
                             returnStdout: true
                         ).trim()
