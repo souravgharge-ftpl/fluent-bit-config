@@ -49,13 +49,15 @@ pipeline {
         stage('Prepare Remote Directory') {
             steps {
                 sshagent([env.SSH_KEY]) {
-                    envFiles.keySet().each { environment ->
-                        sh """
-                            ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} \
-                                "mkdir -p ${REMOTE_PATH}/${environment}/common"
-                            scp -o StrictHostKeyChecking=no common/all-filters.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/${environment}/common/
-                            scp -o StrictHostKeyChecking=no common/all-parsers.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/${environment}/common/
-                        """
+                    script {
+                        envFiles.keySet().each { environment ->
+                            sh """
+                                ssh -o StrictHostKeyChecking=no fluent-bit-user@${UAT_SERVER} \
+                                    "mkdir -p ${REMOTE_PATH}/${environment}/common"
+                                scp -o StrictHostKeyChecking=no common/all-filters.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/${environment}/common/
+                                scp -o StrictHostKeyChecking=no common/all-parsers.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/${environment}/common/
+                            """
+                        }
                     }
                 }
             }
