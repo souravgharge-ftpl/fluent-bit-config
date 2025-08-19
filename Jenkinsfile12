@@ -61,8 +61,8 @@ pipeline {
                                     mkdir -p ${REMOTE_PATH}/${environment}/repo/prism
                                     mkdir -p ${REMOTE_PATH}/${environment}/repo/connecthub
                                 '
-                                scp -o StrictHostKeyChecking=no common/all-filters-${environment}.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/${environment}/common/
-                                scp -o StrictHostKeyChecking=no common/all-parsers-${environment}.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/${environment}/common/
+                                scp -o StrictHostKeyChecking=no "common/all-filters-${environment}.conf" fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/${environment}/common/
+                                scp -o StrictHostKeyChecking=no "common/all-parsers-${environment}.conf" fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/${environment}/common/
                             """
                         }
                     }
@@ -131,7 +131,7 @@ pipeline {
                                     if (idx == 0 || line.startsWith("#")) return
                                     def (deployment, index, firstline, multiline) = line.split(",", -1)
                                     def parserLine = ""
-                                    if (multiline?.trim()) parserline += "    Multiline           On\n"
+                                    if (multiline?.trim()) parserLine += "    Multiline           On\n"
                                     if (firstline?.trim()) parserLine += "    Parser_Firstline    ${firstline.trim()}\n"
                                     if (multiline?.trim()) parserLine += "    Parser_N            ${multiline.trim()}\n"
 
@@ -240,8 +240,8 @@ pipeline {
                                         git checkout ${environment} || git checkout -b ${environment}
                                         git reset --hard origin/${environment} || true
                                         cp ${REMOTE_PATH}/${environment}/master-${environment}.conf ./
-                                        cp ${REMOTE_PATH}/${environment}/common/all-parsers.conf common/
-                                        cp ${REMOTE_PATH}/${environment}/common/all-filters.conf common/
+                                        cp ${REMOTE_PATH}/${environment}/common/all-parsers-${environment}.conf common/
+                                        cp ${REMOTE_PATH}/${environment}/common/all-filters-${environment}.conf common/
                                         cp -r ${REMOTE_PATH}/${environment}/finsense/. finsense/
                                         cp -r ${REMOTE_PATH}/${environment}/prism/. prism/
                                         cp -r ${REMOTE_PATH}/${environment}/connecthub/. connecthub/
