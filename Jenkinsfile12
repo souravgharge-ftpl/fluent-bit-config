@@ -137,8 +137,8 @@ pipeline {
 
                                     combinedInput += inputTemplate
                                         .replace("{{DEPLOYMENT}}", deployment.trim())
-                                        .replace("{{PARSER_LINE}}", parserLine) + "\n"
                                         .replace("{{ENV}}", environment)
+                                        .replace("{{PARSER_LINE}}", parserLine) + "\n"
 
                                     combinedOutput += outputTemplate
                                         .replace("{{DEPLOYMENT}}", deployment.trim())
