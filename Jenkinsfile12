@@ -138,6 +138,7 @@ pipeline {
                                     combinedInput += inputTemplate
                                         .replace("{{DEPLOYMENT}}", deployment.trim())
                                         .replace("{{PARSER_LINE}}", parserLine) + "\n"
+                                        .replace("{{ENV}}", environment)
 
                                     combinedOutput += outputTemplate
                                         .replace("{{DEPLOYMENT}}", deployment.trim())
@@ -157,7 +158,7 @@ pipeline {
                                 """
                             }
 
-                            def combinedFilter = "@include /fluent-bit/etc/includes/common/all-filters.conf\n\n"
+                            def combinedFilter = "@include /fluent-bit/etc/includes/common/all-filters-${environment}.conf\n\n"
                             def masterConf = masterTemplate.contains("{{PRODUCT_INCLUDES}}")
                                 ? masterTemplate.replace("{{PRODUCT_INCLUDES}}", includesBlock)
                                 : masterTemplate.trim() + "\n" + includesBlock + combinedFilter
