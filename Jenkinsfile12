@@ -246,7 +246,7 @@ pipeline {
                                         cp -r ${REMOTE_PATH}/${environment}/prism/. prism/
                                         cp -r ${REMOTE_PATH}/${environment}/connecthub/. connecthub/
 
-                                        git add master-${environment}.conf common/all-parsers.conf common/all-filters.conf finsense connecthub prism
+                                        git add master-${environment}.conf common/all-parsers-${environment}.conf common/all-filters-${environment}.conf finsense connecthub prism
                                         if ! git diff --cached --quiet; then
                                             git config user.email "souravg@finfactor.in"
                                             git config user.name "souravgharge-ftpl"
