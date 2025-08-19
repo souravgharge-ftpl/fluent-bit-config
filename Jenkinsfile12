@@ -61,8 +61,8 @@ pipeline {
                                     mkdir -p ${REMOTE_PATH}/${environment}/repo/prism
                                     mkdir -p ${REMOTE_PATH}/${environment}/repo/connecthub
                                 '
-                                scp -o StrictHostKeyChecking=no common/all-filters.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/${environment}/common/
-                                scp -o StrictHostKeyChecking=no common/all-parsers.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/${environment}/common/
+                                scp -o StrictHostKeyChecking=no common/all-filters-${environment}.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/${environment}/common/
+                                scp -o StrictHostKeyChecking=no common/all-parsers-${environment}.conf fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/${environment}/common/
                             """
                         }
                     }
@@ -131,6 +131,7 @@ pipeline {
                                     if (idx == 0 || line.startsWith("#")) return
                                     def (deployment, index, firstline, multiline) = line.split(",", -1)
                                     def parserLine = ""
+                                    if (multiline?.trim()) parserline += "    Multiline           On\n"
                                     if (firstline?.trim()) parserLine += "    Parser_Firstline    ${firstline.trim()}\n"
                                     if (multiline?.trim()) parserLine += "    Parser_N            ${multiline.trim()}\n"
 
