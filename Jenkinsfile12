@@ -132,6 +132,7 @@ pipeline {
                                     def (deployment, index, firstline, multiline) = line.split(",", -1)
                                     def parserLine = ""
                                     if (multiline?.trim()) parserLine += "    Multiline           On\n"
+                                    if (multiline?.trim()) parserLine += "    Multiline_Flush     5"
                                     if (firstline?.trim()) parserLine += "    Parser_Firstline    ${firstline.trim()}\n"
                                     if (multiline?.trim()) parserLine += "    Parser_N            ${multiline.trim()}\n"
 
