@@ -1,4 +1,4 @@
 #deployment,index,firstline_parser,multiline_parser
-sahamati-service,sahamati-service-connecthub,quarkus_log_parser,
-finsense-core-v2,finsense-v2,,,
-finsense002-dev,finsense-v1,,,
+sahamati-service*_finsense-dev_*,sahamati-service-connecthub,quarkus_log_parser,
+finsense-core-v2*_finsense-dev_*,finsense-v2,unified_parser,
+finsense002-dev*_finsense-dev_*,finsense-v1,,
