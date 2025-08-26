@@ -1,3 +1,3 @@
 #deployment,index,firstline_parser,multiline_parser,tag
-connecthub-v2*_connecthub-dev_*,connecthub-v2-alias,connecthub_firstline_parser,connecthub_continuation_parser,
-connecthub-2-0-0-dev*_connecthub-dev_*,connecthub-karaf-alias,connecthub_karaf_firstline,connecthub_karaf_continuation,
+connecthub-v2*_connecthub-dev_*,connecthub-v2-alias,connecthub_firstline_parser,connecthub_continuation_parser,connecthub_v2
+connecthub-2-0-0-dev*_connecthub-dev_*,connecthub-karaf-alias,connecthub_karaf_firstline,connecthub_karaf_continuation,connecthub_v1
