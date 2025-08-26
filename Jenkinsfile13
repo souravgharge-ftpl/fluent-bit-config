@@ -127,6 +127,7 @@ pipeline {
                                 def combinedInput = ""
                                 def combinedOutput = ""
 
+                                def seenDeployments = [] as Set
                                 lines.eachWithIndex { line, idx ->
                                     if (idx == 0 || line.startsWith("#")) return
                                     def (deployment, index, firstline, multiline, tag) = line.split(",", -1)
@@ -137,12 +138,14 @@ pipeline {
                                     if (multiline?.trim()) parserLine += "    Parser_N            ${multiline.trim()}\n"
 
 
-                                    if (!(deployment in lines)) {
+                                    if (!seenDeployments.contains(deployment.trim())) {
                                         combinedInput += inputTemplate
                                             .replace("{{DEPLOYMENT}}", deployment.trim())
                                             .replace("{{ENV}}", environment)
                                             .replace("{{TAG}}", tag)
                                             .replace("{{PARSER_LINE}}", parserLine) + "\n"
+
+                                        seenDeployments << deployment.trim()
                                     }
 
                                     combinedOutput += outputTemplate
