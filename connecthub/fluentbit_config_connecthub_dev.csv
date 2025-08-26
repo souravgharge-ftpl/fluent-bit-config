@@ -1,2 +1,2 @@
-#deployment,index,firstline_parser,multiline_parser
-test-logger,test,custom_parser,custom_parser
+#deployment,index,firstline_parser,multiline_parser,tag
+test-logger,test,custom_parser,custom_parser,
