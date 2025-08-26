@@ -137,7 +137,7 @@ pipeline {
                                     if (multiline?.trim()) parserLine += "    Parser_N            ${multiline.trim()}\n"
 
 
-                                    if (!(deployment in file)) {
+                                    if (!(deployment in lines)) {
                                         combinedInput += inputTemplate
                                             .replace("{{DEPLOYMENT}}", deployment.trim())
                                             .replace("{{ENV}}", environment)
