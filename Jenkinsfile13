@@ -60,6 +60,7 @@ pipeline {
                                     mkdir -p ${REMOTE_PATH}/${environment}/repo/finsense
                                     mkdir -p ${REMOTE_PATH}/${environment}/repo/prism
                                     mkdir -p ${REMOTE_PATH}/${environment}/repo/connecthub
+                                     mkdir -p ${REMOTE_PATH}/${environment}/repo/pfm
                                 '
                                 scp -o StrictHostKeyChecking=no "common/all-filters-${environment}.conf" fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/${environment}/common/
                                 scp -o StrictHostKeyChecking=no "common/all-parsers-${environment}.conf" fluent-bit-user@${UAT_SERVER}:${REMOTE_PATH}/${environment}/common/
