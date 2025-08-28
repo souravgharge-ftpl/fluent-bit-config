@@ -128,7 +128,8 @@ pipeline {
                                 def combinedInput = ""
                                 def combinedOutput = ""
 
-                                def seenDeployments = [] as Set
+                                def seenInputs = [] as Set
+                                def seenOutputs = [] as Set
                                 lines.eachWithIndex { line, idx ->
                                     if (idx == 0 || line.startsWith("#")) return
                                     def (deployment, index, firstline, multiline, tag) = line.split(",", -1)
@@ -139,20 +140,25 @@ pipeline {
                                     if (multiline?.trim()) parserLine += "    Parser_N            ${multiline.trim()}\n"
 
 
-                                    if (!seenDeployments.contains(deployment.trim())) {
+                                    if (!seenInputs.contains(deployment.trim())) {
                                         combinedInput += inputTemplate
                                             .replace("{{DEPLOYMENT}}", deployment.trim())
                                             .replace("{{ENV}}", environment)
                                             .replace("{{TAG}}", tag)
                                             .replace("{{PARSER_LINE}}", parserLine) + "\n"
 
-                                        seenDeployments << deployment.trim()
+                                        seenInputs << deployment.trim()
                                     }
 
-                                    combinedOutput += outputTemplate
-                                        .replace("{{DEPLOYMENT}}", deployment.trim())
-                                        .replace("{{TAG}}", tag)
-                                        .replace("{{INDEX}}", index.trim()) + "\n"
+                                    if (!seenOutputs.contains([tag.trim(), index.trim()])){
+                                        combinedOutput += outputTemplate
+                                            .replace("{{DEPLOYMENT}}", deployment.trim())
+                                            .replace("{{TAG}}", tag)
+                                            .replace("{{INDEX}}", index.trim()) + "\n"
+                                            
+                                        seenOutputs << [tag.trim(), index.trim()]
+
+                                    }
                                 }
 
                                 def finalConf = combinedInput + combinedOutput
