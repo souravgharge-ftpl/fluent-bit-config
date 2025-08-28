@@ -168,9 +168,11 @@ pipeline {
                             }
 
                             def combinedFilter = "@include /fluent-bit/etc/includes/common/all-filters-${environment}.conf\n\n"
-                            def masterConf = masterTemplate.contains("{{PRODUCT_INCLUDES}}")
-                                ? masterTemplate.replace("{{PRODUCT_INCLUDES}}", includesBlock)
-                                : masterTemplate.trim() + "\n" + includesBlock + combinedFilter
+                            def updatedmasterTemplate = masterTemplate.replace("{{ENV}}", environment)
+
+                            def masterConf = updatedmasterTemplate.contains("{{PRODUCT_INCLUDES}}") ?
+                                updatedmasterTemplate.replace("{{PRODUCT_INCLUDES}}", includesBlock) + combinedFilter :
+                                updatedmasterTemplate.trim() + "\n" + includesBlock + combinedFilter
 
                             writeFile file: "master-${environment}.conf", text: masterConf
 
