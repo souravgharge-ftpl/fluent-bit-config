@@ -1,4 +1,4 @@
-def productFiles = ["connecthub", "finsense", "prism", "pfm", "risk-gauge"]
+def productFiles = ["connecthub", "finsense", "prism", "pfm"]
 def DRY_RUN_STATUS = "FAIL"
 def safeCommitMsg = ""
 def localDryRunFile = ""
@@ -12,8 +12,8 @@ pipeline {
         UAT_SERVER     = '13.235.152.196'
         PROD_SERVER    = ''
         SSH_KEY        = 'fluent-bit-user'
-        GIT_TOKEN      = 'jenkins-github-token'
-        MASTER_REPO    = 'git@github.com:Finfactor-Technologies/fluent-bit-config-master.git'
+        GIT_TOKEN      = 'sourav-github-token'
+        MASTER_REPO    = 'git@github.com:souravgharge-ftpl/fluent-bit-config-master.git'
         REMOTE_PATH    = '/home/fluent-bit-user/fluent-bit/generated'
     }
 
@@ -26,9 +26,9 @@ pipeline {
         stage('Checkout Config Repo') {
             steps {
                 git(
-                    url: 'https://github.com/Finfactor-Technologies/fluent-bit-config.git',
+                    url: 'https://github.com/souravgharge-ftpl/fluent-bit-config.git',
                     branch: 'main',
-                    credentialsId: 'jenkins-github-token'
+                    credentialsId: 'sourav-github-token'
                 )
             }
         }
