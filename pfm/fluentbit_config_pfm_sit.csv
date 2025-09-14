@@ -1,1 +1,11 @@
-
+#deployment,index,firstline_parser,multiline_parser,tag
+pfm-bbps-processor*_pfm-dev-dpg_*,pfm-dpg,,,
+pfm-data-transfer-service*_pfm-dev-dpg_*,pfm-dpg,,,
+pfm-deposits-processor*_pfm-dev-dpg_*,pfm-dpg,,,
+pfm-equities-processor*_pfm-dev-dpg_*,pfm-dpg,,,
+pfm-etf-processor*_pfm-dev-dpg_*,pfm-dpg,,,
+pfm-market-data-provider*_pfm-dev-dpg_*,pfm-dpg,,,
+pfm-mfc-data-provider*_pfm-dev-dpg_*,pfm-dpg,,,
+pfm-mutualfunds-processor*_pfm-dev-dpg_*,pfm-dpg,,,
+pfm-notifier*_pfm-dev-dpg_*,pfm-dpg,,,
+pfm-nps-processor*_pfm-dev-dpg_*,pfm-dpg,,,
