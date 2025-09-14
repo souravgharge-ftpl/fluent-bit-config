@@ -113,9 +113,11 @@ pipeline {
             steps {
                 sshagent([env.SSH_KEY]) {
                     script {
-                        prod_opensearch = 'opensearch-cluster-master.opensearch.svc.cluster.local-prod'
-                        uat_opensearch  = 'opensearch-cluster-master.opensearch.svc.cluster.local-uat'
-                        sit_opensearch  = 'opensearch-cluster-master.opensearch.svc.cluster.local-sit'
+                        def opensearchHosts = [
+                            sit : 'opensearch-cluster-master.opensearch.svc.cluster.local-sit',
+                            uat : 'opensearch-cluster-master.opensearch.svc.cluster.local-uat',
+                            prod: 'opensearch-cluster-master.opensearch.svc.cluster.local-prod'
+                        ]
 
                         def inputTemplate  = readFile('common/template/fluentbit_input_template.conf')
                         def outputTemplate = readFile('common/template/fluentbit_output_template.conf')
@@ -158,7 +160,7 @@ pipeline {
                                         combinedOutput += outputTemplate
                                             .replace("{{DEPLOYMENT}}", deployment.trim())
                                             .replace("{{TAG}}", tag)
-                                            .replace("{{HOST}}", "${environment}_opensearch")
+                                            .replace("{{HOST}}", opensearchHosts[environment])
                                             .replace("{{INDEX}}", index.trim()) + "\n"
                                             
                                         seenOutputs << [tag.trim(), index.trim()]
