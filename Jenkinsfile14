@@ -268,9 +268,10 @@ pipeline {
                                         cp ${REMOTE_PATH}/${environment}/common/all-filters-${environment}.conf common/
                                         cp ${REMOTE_PATH}/${environment}/common/all-truncate-message-${environment}.lua common/
 
-                                        for product in "${productFiles.join(' ')}"; do
-                                            cp -r ${REMOTE_PATH}/${environment}/\$product/. \$product/
-                                        done
+                                        cp -r ${REMOTE_PATH}/${environment}/finsense/. finsense/
+                                        cp -r ${REMOTE_PATH}/${environment}/prism/. prism/
+                                        cp -r ${REMOTE_PATH}/${environment}/connecthub/. connecthub/
+                                        cp -r ${REMOTE_PATH}/${environment}/pfm/. pfm/
 
                                         git add master-${environment}.conf common/all-parsers-${environment}.conf common/all-filters-${environment}.conf finsense connecthub prism pfm
                                         if ! git diff --cached --quiet; then
