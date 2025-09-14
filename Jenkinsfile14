@@ -1,4 +1,4 @@
-def productFiles = ["connecthub", "finsense", "prism", "pfm", "risk-gauge"]
+def productFiles = ["connecthub", "finsense", "prism", "pfm"]
 def DRY_RUN_STATUS = "FAIL"
 def safeCommitMsg = ""
 def localDryRunFile = ""
