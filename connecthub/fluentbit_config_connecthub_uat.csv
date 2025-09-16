@@ -1,3 +1,5 @@
 #deployment,index,firstline_parser,multiline_parser,tag,match
-connecthub-v2*_connecthub-dev_*,connecthub-v2-alias,connecthub_firstline_parser,connecthub_continuation_parser,,
-connecthub-2-0-0-dev*_connecthub-dev_*,connecthub-karaf-alias,connecthub_karaf_firstline,connecthub_karaf_continuation,,
+connecthub-v2*_connecthub-dev_*,alias-connecthub-v2,connecthub_firstline_parser,connecthub_continuation_parser,,
+connecthub-2-0-0-dev*_connecthub-dev_*,alias-connecthub-karaf,connecthub_karaf_firstline,connecthub_karaf_continuation,,
+connecthub-jobs*_connecthub-dev_*,connecthub-reports,connecthub_firstline_parser_reports,,,
+connecthub-reports*_connecthub-dev_*,connecthub-reports,connecthub_firstline_parser_reports,,,
