@@ -1,2 +1,2 @@
-#deployment,index,firstline_parser,multiline_parser,tag
-connecthub-v2*_connecthub-dev_*,connecthub-v2,,,
+#deployment,index,firstline_parser,multiline_parser,tag,match
+connecthub-v2*_connecthub-dev_*,connecthub-v2,,,,
