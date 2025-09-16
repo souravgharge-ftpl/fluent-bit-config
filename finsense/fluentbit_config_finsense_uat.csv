@@ -1,5 +1,5 @@
-#deployment,index,firstline_parser,multiline_parser,tag
-sahamati-service*_finsense-dev_*,sahamati-service-connecthub,quarkus_log_parser,,sahamati_service
-finsense-core-v2*_finsense-dev_*,finsense-v2,unified_parser,,finsense_v2
-finsense002-dev*_finsense-dev_*,finsense-v1,,,finsense_v1
-finsense002-dev*_finsense-dev_*,finsense-v1-ot,,,finsense_ot
+#deployment,index,firstline_parser,multiline_parser,tag,match
+sahamati-service*_finsense-dev_*,sahamati-service-connecthub,quarkus_log_parser,,,
+finsense-core-v2*_finsense-dev_*,finsense-v2,unified_parser,,,
+finsense002-dev*_finsense-dev_*,finsense-v1,,,,
+finsense002-dev*_finsense-dev_*,finsense-v1-ot,,,,
