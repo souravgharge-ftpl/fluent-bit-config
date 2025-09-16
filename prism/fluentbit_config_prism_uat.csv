@@ -1,10 +1,10 @@
-#deployment,index,firstline_parser,multiline_parser,tag
-txn-classifier-v2-service*_txn-classifier-dev_*,txn-classifier-v2-service,prism_log_parser,prism_multiline,txn_classifier_v2_service
-prism-models*,prism-models,vllm_log_parser,,prism_models
-finfactor-buddy*,finfactor-buddy,,,finfactor_buddy
-finsense-prism*,finsense-prism,,,finsense_prism
-pfm-deletion-pod*,pfm-deletion-pod,,,pfm_deletion_pod
-risk-gauge-be*,risk-gauge-be,risk_gauge_multiline,risk_gauge_multiline,risk_gauge_be
+#deployment,index,firstline_parser,multiline_parser,tag,match
+txn-classifier-v2-service*_txn-classifier-dev_*,txn-classifier-v2-service,prism_log_parser,prism_multiline,,
+prism-models*,prism-models,vllm_log_parser,,,
+finfactor-buddy*,finfactor-buddy,,,,
+finsense-prism*,finsense-prism,,,,
+pfm-deletion-pod*,pfm-deletion-pod,,,,
+risk-gauge-be*,risk-gauge-be,risk_gauge_multiline,risk_gauge_multiline,,
 
 
 
