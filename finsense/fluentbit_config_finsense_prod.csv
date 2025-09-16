@@ -6,7 +6,7 @@ finsentinel-axis*_finsense-pfm-axis_*,alias-pfm-axis-1,custom_parser,,,
 finsense001-2-x-x*_finsense_*,alias-finsense-multitenant-1,finsense_java_multiline,,,
 finsense001-2-x-x*_finsense_*,finsense-mt-op-000001,opentelemetry_parser,,,finsense_v1_ot
 finsense-hdfcsme-2-x-x*_finsense_*,hdfcsme-000001,finsense_pattern,finsense_java_multiline,,
-finsense001-v1-2-x-x*_finsense_*,finsense-mt-op-000001,finsense_pattern,finsense_java_multiline,finsense_v1_2_ot
+finsense001-v1-2-x-x*_finsense_*,finsense-mt-op-000001,finsense_pattern,finsense_java_multiline,finsense_v1_2_ot,
 pfm-axis-mutualfunds-processor*_finsense-axis_*,alias-pfm-axis-1,custom_parser,,,
 pfm-axis-etf-processor*_finsense-axis_*,alias-pfm-axis-1,custom_parser,,,
 pfm-axis-equities-processor*_finsense-axis_*,alias-pfm-axis-1,custom_parser,,,
