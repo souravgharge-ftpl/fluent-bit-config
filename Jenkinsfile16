@@ -148,7 +148,7 @@ pipeline {
                                     tag = (tag == "") ? "kube.*" : tag
                                     match = (match == "") ? "kube.var.log.containers." + deployment : match
 
-                                    if (!seenInputs.contains(deployment.trim(), tag.trim())) {
+                                    if (!seenInputs.contains([deployment.trim(), tag.trim()])) {
                                         combinedInput += inputTemplate
                                             .replace("{{DEPLOYMENT}}", deployment.trim())
                                             .replace("{{ENV}}", environment)
