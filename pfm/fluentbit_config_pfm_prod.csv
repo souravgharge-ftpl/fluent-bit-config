@@ -1,11 +1,11 @@
-#deployment,index,firstline_parser,multiline_parser,tag
-pfm-core*,alias-pfm-multitenant-1,custom_parser,,pfm_core
-pfm-data-transfer-service*,alias-pfm-multitenant-1,custom_parser,,pfm_data_transfer_service
-pfm-core-job*,pfm-core-job-000001,custom_parser,,pfm_core_job
-mutualfunds-processor*,alias-pfm-multitenant-1,custom_parser,,mutualfunds_processor
-etf-processor*,alias-pfm-axis-1,custom_parser,,etf_processor
-deposits-processor*,alias-pfm-multitenant-1,custom_parser,,deposits_processor
-pfm-notifier*,alias-pfm-multitenant-1,custom_parser,,pfm_notifier
-equities-processor*,alias-pfm-multitenant-1,custom_parser,,equities_processor
-nps-processor*,equities-processor,custom_parser,,nps_processor
+#deployment,index,firstline_parser,multiline_parser,tag,match
+pfm-core*,alias-pfm-multitenant-1,custom_parser,,,
+pfm-data-transfer-service*,alias-pfm-multitenant-1,custom_parser,,,
+pfm-core-job*,pfm-core-job-000001,custom_parser,,,
+mutualfunds-processor*,alias-pfm-multitenant-1,custom_parser,,,
+etf-processor*,alias-pfm-axis-1,custom_parser,,,
+deposits-processor*,alias-pfm-multitenant-1,custom_parser,,,
+pfm-notifier*,alias-pfm-multitenant-1,custom_parser,,,
+equities-processor*,alias-pfm-multitenant-1,custom_parser,,,
+nps-processor*,equities-processor,custom_parser,,,
 
