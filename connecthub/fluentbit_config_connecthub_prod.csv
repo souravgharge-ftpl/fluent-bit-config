@@ -1,6 +1,6 @@
-#deployment,index,firstline_parser,multiline_parser,tag
-connecthub-2-x-x*_connecthub_*,connecthub-000001,connecthub_karaf_firstline,connecthub_karaf_continuation,connecthub_v1
-connecthub-2-x-x*_connecthub-canara_*,connecthub-canara,connecthub_karaf_firstline,connecthub_karaf_continuation,connecthub_v1_canara
-connecthub001-fip-web-admin*_connecthub-canara_*,connecthub-canara,connecthub_karaf_firstline,connecthub_karaf_continuation,connecthub_v1_fip_web_admin
-connecthub001-reports-api*_connecthub-canara_*,connecthub-canara,connecthub_karaf_firstline,connecthub_karaf_continuation,connecthub_v1_reports_api
-connecthub001-reports-factory*_connecthub-canara_*,connecthub-canara,connecthub_karaf_firstline,connecthub_karaf_continuation,connecthub_v1_reports_factory
+#deployment,index,firstline_parser,multiline_parser,tag,match
+connecthub-2-x-x*_connecthub_*,connecthub-000001,connecthub_karaf_firstline,connecthub_karaf_continuation,,
+connecthub-2-x-x*_connecthub-canara_*,connecthub-canara,connecthub_karaf_firstline,connecthub_karaf_continuation,,
+connecthub001-fip-web-admin*_connecthub-canara_*,connecthub-canara,connecthub_karaf_firstline,connecthub_karaf_continuation,,
+connecthub001-reports-api*_connecthub-canara_*,connecthub-canara,connecthub_karaf_firstline,connecthub_karaf_continuation,,
+connecthub001-reports-factory*_connecthub-canara_*,connecthub-canara,connecthub_karaf_firstline,connecthub_karaf_continuation,,
