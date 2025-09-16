@@ -145,10 +145,8 @@ pipeline {
                                     if (firstline?.trim()) parserLine += "    Parser_Firstline    ${firstline.trim()}\n"
                                     if (multiline?.trim()) parserLine += "    Parser_N            ${multiline.trim()}\n"
 
-                                    if (tag == "") {
-                                        tag = "kube.*"
-                                        match = "kube.var.log.containers." + deployment
-                                    }
+                                    if tag == "" ? tag = "kube.*" : tag
+                                    if match = "" ? match = "kube.var.log.containers." + deployment : match
 
                                     if (!seenInputs.contains(deployment.trim())) {
                                         combinedInput += inputTemplate
