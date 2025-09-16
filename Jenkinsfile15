@@ -158,7 +158,7 @@ pipeline {
                                         seenInputs << deployment.trim()
                                     }
 
-                                    if (!seenOutputs.contains([tag.trim(), index.trim()])){
+                                    if (!seenOutputs.contains([match.trim(), index.trim()])){
                                         combinedOutput += outputTemplate
                                             .replace("{{DEPLOYMENT}}", deployment.trim())
                                             .replace("{{MATCH}}", match)
