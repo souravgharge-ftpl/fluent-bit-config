@@ -138,14 +138,17 @@ pipeline {
                                 def seenOutputs = [] as Set
                                 lines.eachWithIndex { line, idx ->
                                     if (idx == 0 || line.startsWith("#")) return
-                                    def (deployment, index, firstline, multiline, tag) = line.split(",", -1)
+                                    def (deployment, index, firstline, multiline, tag, match) = line.split(",", -1)
                                     def parserLine = ""
                                     if (multiline?.trim()) parserLine += "    Multiline           On\n"
                                     if (multiline?.trim()) parserLine += "    Multiline_Flush     5\n"
                                     if (firstline?.trim()) parserLine += "    Parser_Firstline    ${firstline.trim()}\n"
                                     if (multiline?.trim()) parserLine += "    Parser_N            ${multiline.trim()}\n"
 
-                                    tag = (tag == "") ? "kube.*" : tag
+                                    if (tag == "") {
+                                        tag = "kube.*"
+                                        match = "kube.var.log.containers." + deployment
+                                    }
 
                                     if (!seenInputs.contains(deployment.trim())) {
                                         combinedInput += inputTemplate
@@ -160,7 +163,7 @@ pipeline {
                                     if (!seenOutputs.contains([tag.trim(), index.trim()])){
                                         combinedOutput += outputTemplate
                                             .replace("{{DEPLOYMENT}}", deployment.trim())
-                                            .replace("{{TAG}}", tag)
+                                            .replace("{{MATCH}}", match)
                                             .replace("{{HOST}}", opensearchHosts[environment])
                                             .replace("{{INDEX}}", index.trim()) + "\n"
                                             
